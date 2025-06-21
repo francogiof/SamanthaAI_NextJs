@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useStackApp, useUser } from "@stackframe/stack";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
@@ -41,20 +40,18 @@ function SignInSignUpButtons() {
 }
 
 function AuthButtonsInner() {
-  const user = useUser();
+  console.log("AuthButtonsInner rendered");
 
-  if (user) {
-    return (
-      <Link
-        href="/dashboard"
-        className={buttonVariants({ variant: "default" })}
-      >
-        Dashboard
-      </Link>
-    );
-  } else {
-    return <SignInSignUpButtons />;
-  }
+  return (
+    <>
+      <a href="/signin" className="btn btn-secondary">
+        Sign In
+      </a>
+      <a href="/signup" className="btn btn-primary">
+        Sign Up
+      </a>
+    </>
+  );
 }
 
 function AuthButtons() {

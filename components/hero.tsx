@@ -7,7 +7,6 @@ export function Hero(props: {
   capsuleLink: string;
   title: string;
   subtitle: string;
-  credits?: React.ReactNode;
   primaryCtaText: string;
   primaryCtaLink: string;
   secondaryCtaText: string;
@@ -46,10 +45,6 @@ export function Hero(props: {
             {props.secondaryCtaText}
           </Link>
         </div>
-
-        {props.credits && (
-          <p className="text-sm text-muted-foreground mt-4">{props.credits}</p>
-        )}
       </div>
     </section>
   );

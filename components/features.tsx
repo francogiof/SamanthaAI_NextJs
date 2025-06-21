@@ -40,9 +40,15 @@ export function FeatureGrid(props: {
       </div>
 
       <div className="mx-auto grid justify-center gap-4 sm:grid-cols-2 md:max-w-5xl md:grid-cols-3">
-        {props.items.map((item, index) => (
-          <FeatureGridItem key={index} {...item} />
-        ))}
+        {props.items
+          .filter(
+            (item) =>
+              !item.title.toLowerCase().includes("team") &&
+              !item.description.toLowerCase().includes("team")
+          )
+          .map((item, index) => (
+            <FeatureGridItem key={index} {...item} />
+          ))}
       </div>
     </section>
   );
