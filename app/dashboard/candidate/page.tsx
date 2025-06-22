@@ -2,11 +2,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export const metadata = {
-  title: "Dashboard - Stack Template",
-};
-
-export default function DashboardPage() {
+export default function CandidateDashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
@@ -22,12 +18,18 @@ export default function DashboardPage() {
     })
       .then(res => res.json())
       .then(data => {
-        if (data.role === 'candidate') router.replace('/dashboard/candidate');
-        else if (data.role === 'team-leader') router.replace('/dashboard/team-leader');
-        else router.replace('/select-role');
+        if (data.role !== 'candidate') {
+          if (data.role === 'team-leader') router.replace('/dashboard/team-leader');
+          else router.replace('/select-role');
+        }
       })
       .catch(() => router.replace('/select-role'));
   }, [router]);
 
-  return null;
+  return (
+    <div className="p-8 text-center">
+      <h1 className="text-2xl font-bold">Welcome, Candidate!</h1>
+      <p className="mt-2">This is your dashboard.</p>
+    </div>
+  );
 }
