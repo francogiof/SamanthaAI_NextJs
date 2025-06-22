@@ -10,6 +10,10 @@ export default function SelectRolePage() {
   const user = useUser();
 
   useEffect(() => {
+    // Always sync stackAuthId to localStorage for dashboard pages
+    if (user?.id) {
+      localStorage.setItem('stackAuthId', user.id);
+    }
     console.log("Stack Auth user:", user);
   }, [user]);
 
