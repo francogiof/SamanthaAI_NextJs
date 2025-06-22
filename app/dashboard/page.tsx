@@ -2,10 +2,6 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export const metadata = {
-  title: "Dashboard - Stack Template",
-};
-
 export default function DashboardPage() {
   const router = useRouter();
 
