@@ -1,95 +1,31 @@
-"use client";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useUser } from "@stackframe/stack";
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import SelectRoleClient from './SelectRoleClient';
 
-export default function SelectRolePage() {
-  const [role, setRole] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-  const user = useUser();
-  const router = useRouter();
+export default async function SelectRolePage() {
+  const cookieStore = await cookies();
+  const stackAuthId = cookieStore.get('stackAuthId')?.value;
 
-  useEffect(() => {
-    if (user?.id) {
-      // Always sync stackAuthId to localStorage for dashboard pages
-      localStorage.setItem('stackAuthId', user.id);
-      // Check if user already has a role
-      fetch("/api/role/get", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stackAuthId: user.id })
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.role === 'candidate') router.replace('/dashboard/candidate');
-          else if (data.role === 'team-leader') router.replace('/dashboard/team-leader');
-        });
-    }
-  }, [user, router]);
+  if (!stackAuthId) {
+    // Show a loading spinner if cookie is missing (likely just signed in)
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <span className="text-lg">Loading...</span>
+      </div>
+    );
+  }
 
-  const stackAuthId = user?.id;
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/role/get`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ stackAuthId }),
+    cache: 'no-store',
+  });
+  if (res.ok) {
+    const data = await res.json();
+    if (data.role === 'candidate') redirect('/dashboard/candidate');
+    else if (data.role === 'team-leader') redirect('/dashboard/team-leader');
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    setSuccess(false);
-    if (!role) {
-      setError("Please select a role.");
-      setLoading(false);
-      return;
-    }
-    if (!stackAuthId) {
-      setError("User not authenticated.");
-      setLoading(false);
-      return;
-    }
-    try {
-      const res = await fetch("/api/role/assign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stackAuthId, role }),
-      });
-      if (!res.ok) throw new Error("Failed to assign role");
-      setSuccess(true);
-      // Redirect to dashboard based on role
-      window.location.href = role === "candidate" ? "/dashboard/candidate" : "/dashboard/team-leader";
-    } catch (err) {
-      setError("Failed to assign role.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="max-w-md mx-auto mt-20 p-6 bg-white rounded shadow">
-      <h1 className="text-2xl font-bold mb-4">Select Your Role</h1>
-      <form onSubmit={handleSubmit}>
-        <div className="mb-4">
-          <label className="block mb-2 font-medium">Role</label>
-          <select
-            className="w-full border rounded p-2"
-            value={role}
-            onChange={e => setRole(e.target.value)}
-            required
-          >
-            <option value="">-- Select --</option>
-            <option value="candidate">Candidate</option>
-            <option value="team-leader">Team Leader</option>
-          </select>
-        </div>
-        {error && <div className="text-red-500 mb-2">{error}</div>}
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded disabled:opacity-50"
-          disabled={loading}
-        >
-          {loading ? "Saving..." : "Continue"}
-        </button>
-        {success && <div className="text-green-600 mt-2">Role assigned! Redirecting...</div>}
-      </form>
-    </div>
-  );
+  return <SelectRoleClient stackAuthId={stackAuthId} />;
 }

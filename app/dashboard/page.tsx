@@ -1,29 +1,33 @@
-"use client";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
-export default function DashboardPage() {
-  const router = useRouter();
+export default async function DashboardPage() {
+  const cookieStore = await cookies();
+  const stackAuthId = cookieStore.get('stackAuthId')?.value;
 
-  useEffect(() => {
-    const stackAuthId = typeof window !== 'undefined' ? localStorage.getItem('stackAuthId') : null;
-    if (!stackAuthId) {
-      router.replace('/select-role');
-      return;
-    }
-    fetch('/api/role/get', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stackAuthId })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.role === 'candidate') router.replace('/dashboard/candidate');
-        else if (data.role === 'team-leader') router.replace('/dashboard/team-leader');
-        else router.replace('/select-role');
-      })
-      .catch(() => router.replace('/select-role'));
-  }, [router]);
+  if (!stackAuthId) {
+    // Show a loading spinner if cookie is missing (likely just signed in)
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <span className="text-lg">Loading your dashboard...</span>
+      </div>
+    );
+  }
+
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/role/get`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ stackAuthId }),
+    cache: 'no-store',
+  });
+  if (res.ok) {
+    const data = await res.json();
+    if (data.role === 'candidate') redirect('/dashboard/candidate');
+    else if (data.role === 'team-leader') redirect('/dashboard/team-leader');
+    else redirect('/select-role');
+  } else {
+    redirect('/select-role');
+  }
 
   return null;
 }
