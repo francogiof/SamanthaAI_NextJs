@@ -1,15 +1,19 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useUser } from "@stackframe/stack";
 
 export default function SelectRolePage() {
   const [role, setRole] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const user = useUser();
 
-  // Get stackAuthId from session/user context (replace with your actual logic)
-  // For demo, use a placeholder
-  const stackAuthId = typeof window !== 'undefined' ? localStorage.getItem('stackAuthId') : null;
+  useEffect(() => {
+    console.log("Stack Auth user:", user);
+  }, [user]);
+
+  const stackAuthId = user?.id;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
