@@ -23,5 +23,5 @@ export function linkCandidateToTeamLeader(candidateStackAuthId: string, teamLead
 export function getCandidatesForTeamLeader(teamLeaderStackAuthId: string): CandidateTeamLeader[] {
   initCandidateTeamLeaderTable();
   return db.prepare('SELECT * FROM candidate_team_leader WHERE teamLeaderStackAuthId = ?')
-    .all(teamLeaderStackAuthId);
+    .all(teamLeaderStackAuthId) as CandidateTeamLeader[];
 }

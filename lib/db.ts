@@ -1,6 +1,11 @@
 import Database from 'better-sqlite3';
 
-// Singleton pattern to avoid multiple connections in dev
+// Add type for globalThis.__db
+declare global {
+  // eslint-disable-next-line no-var
+  var __db: Database.Database | undefined;
+}
+
 let db: Database.Database;
 
 if (!globalThis.__db) {

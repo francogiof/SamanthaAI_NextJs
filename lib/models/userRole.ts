@@ -26,5 +26,5 @@ export function upsertUserRole(stackAuthId: string, role: 'candidate' | 'team-le
 // Get a user role by stackAuthId
 export function getUserRole(stackAuthId: string): UserRole | undefined {
   initUserRoleTable();
-  return db.prepare('SELECT * FROM user_roles WHERE stackAuthId = ?').get(stackAuthId);
+  return db.prepare('SELECT * FROM user_roles WHERE stackAuthId = ?').get(stackAuthId) as UserRole | undefined;
 }

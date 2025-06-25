@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useUser } from "@stackframe/stack";
+import { useRouter } from "next/navigation";
 
 export default function SelectRolePage() {
   const [role, setRole] = useState("");
@@ -8,14 +9,32 @@ export default function SelectRolePage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const user = useUser();
+  const router = useRouter();
 
   useEffect(() => {
     // Always sync stackAuthId to localStorage for dashboard pages
     if (user?.id) {
       localStorage.setItem('stackAuthId', user.id);
     }
+    // Check if user already has a role and redirect if so
+    async function checkRole() {
+      if (!user?.id) return;
+      try {
+        const res = await fetch("/api/role/get", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stackAuthId: user.id }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.role === "candidate") router.replace("/dashboard/candidate");
+          else if (data.role === "team-leader") router.replace("/dashboard/team-leader");
+        }
+      } catch {}
+    }
+    checkRole();
     console.log("Stack Auth user:", user);
-  }, [user]);
+  }, [user, router]);
 
   const stackAuthId = user?.id;
 
