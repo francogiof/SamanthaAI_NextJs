@@ -4,6 +4,7 @@ import { PricingGrid } from "@/components/pricing";
 import { stackServerApp } from "@/stack";
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
 import { ComponentIcon, Users } from "lucide-react";
+import Waves from "./waves-client";
 
 export default async function IndexPage() {
   const project = await stackServerApp.getProject();
@@ -24,19 +25,22 @@ export default async function IndexPage() {
 
   return (
     <>
-      <Hero
-        capsuleText="SamanthaAI – Autonomous Hiring for Tech Teams"
-        capsuleLink="/"
-        title="SamanthaAI: Fast, Fair, and Explainable Technical Hiring."
-        subtitle="Automate interviews, scoring, and decisions with modular AI agents."
-        primaryCtaText="🚀 Try SamanthaAI Demo"
-        primaryCtaLink={stackServerApp.urls.signUp}
-        secondaryCtaText="🧠 View on GitHub"
-        secondaryCtaLink="https://github.com/stack-auth/stack-template"
-        credits={
-          <>Purpose-built for engineering recruitment. Open-source, auditable, and developer-first.</>
-        }
-      />
+      <div className="relative">
+        <Waves />
+        <Hero
+          capsuleText="SamanthaAI – Autonomous Hiring for Tech Teams"
+          capsuleLink="/"
+          title="SamanthaAI: Fast, Fair, and Explainable Technical Hiring."
+          subtitle="Automate interviews, scoring, and decisions with modular AI agents."
+          primaryCtaText="🚀 Try SamanthaAI Demo"
+          primaryCtaLink={stackServerApp.urls.signUp}
+          secondaryCtaText="🧠 View on GitHub"
+          secondaryCtaLink="https://github.com/stack-auth/stack-template"
+          credits={
+            <>Purpose-built for engineering recruitment. Open-source, auditable, and developer-first.</>
+          }
+        />
+      </div>
 
       <div id="features" />
       <FeatureGrid
