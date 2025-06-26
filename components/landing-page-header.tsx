@@ -24,14 +24,14 @@ function SignInSignUpButtons() {
   return (
     <>
       <Link
-        href={app.urls.signIn}
+        href={app.urls.signIn + '?intent=sign-in'}
         className={buttonVariants({ variant: "secondary" })}
       >
         Sign In
       </Link>
 
       <Link
-        href={app.urls.signUp}
+        href={app.urls.signUp + '?intent=sign-up'}
         className={buttonVariants({ variant: "default" })}
       >
         Sign Up
