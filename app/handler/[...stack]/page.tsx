@@ -15,81 +15,134 @@ export default async function Handler(props: any) {
 
   const intent = searchParams?.intent;
 
-  // Centralize post-auth redirect: if Stack Auth signals a successful sign in/up, redirect to /dashboard
-  if (searchParams?.event === "sign-in" || searchParams?.event === "sign-up") {
-    // Only run intent logic after OAuth event
-    if (intent && stackAuthId) {
-      // Check if user exists in DB
-      let userRole: any = null;
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/role/get`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ stackAuthId }),
-          cache: "no-store",
-        });
-        if (res.ok) {
-          userRole = await res.json();
-        }
-      } catch {}
-
-      // SIGN IN FLOW
-      if (intent === "sign-in") {
-        if (!userRole) {
-          // User does not exist
-          // Log failed sign in attempt (optional analytics)
-          if (process.env.NODE_ENV !== "production") {
-            console.warn(`[Auth] Failed sign in: user does not exist for stackAuthId ${stackAuthId}`);
-          }
-          return (
-            <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-gray-50">
-              <div className="text-2xl font-bold text-red-600 mb-2">User not found</div>
-              <div className="text-gray-700 mb-4">No account exists for this sign in. Please sign up to create a new account.</div>
-              <Link href={"/handler/sign-up?intent=sign-up"} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Sign up instead</Link>
-            </div>
-          );
-        }
-        // User exists, check role and redirect
-        if (userRole.role === "candidate") redirect("/dashboard/candidate");
-        else if (userRole.role === "team-leader") redirect("/dashboard/team-leader");
-        else redirect("/dashboard");
-      }
-
-      // SIGN UP FLOW
-      if (intent === "sign-up") {
-        if (userRole) {
-          // User already exists
-          // Log failed sign up attempt (optional analytics)
-          if (process.env.NODE_ENV !== "production") {
-            console.warn(`[Auth] Failed sign up: user already exists for stackAuthId ${stackAuthId}`);
-          }
-          return (
-            <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-gray-50">
-              <div className="text-2xl font-bold text-red-600 mb-2">Account already exists</div>
-              <div className="text-gray-700 mb-4">An account with this sign in already exists. Please sign in to continue.</div>
-              <Link href={"/handler/sign-in?intent=sign-in"} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Sign in instead</Link>
-            </div>
-          );
-        }
-        // User does not exist, create team if needed, then go to role selection
-        try {
-          const user = await stackServerApp.getUser(stackAuthId);
-          if (user) {
-            const teams = await user.listTeams();
-            if (teams.length === 0) {
-              await user.createTeam({ displayName: "My Team" });
-            }
-          }
-        } catch (err) {
-          // Log but do not block onboarding
-          console.error("[Handler] Error ensuring team for user", err);
-        }
-        redirect("/select-role");
-      }
+  // --- EARLY INTENT BRANCHING ---
+  if (intent === "sign-in") {
+    // --- STRICT SIGN IN LOGIC ---
+    if (!stackAuthId) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-background text-foreground">
+          <div className="text-2xl font-bold text-blue-700 mb-2">Sign In Required</div>
+          <div className="text-muted-foreground mb-4">You must be signed in to access your dashboard. Please sign in below.</div>
+          <div className="mb-2">
+            <StackHandler fullPage app={stackServerApp} routeProps={props} />
+          </div>
+        </div>
+      );
     }
+    let userRole: any = null;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/role/get`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stackAuthId }),
+        cache: "no-store",
+      });
+      if (res.ok) {
+        userRole = await res.json();
+      }
+    } catch (err) {
+      // Defensive: show error if DB check fails
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-background text-foreground">
+          <div className="text-2xl font-bold text-red-600 mb-2">Server Error</div>
+          <div className="text-muted-foreground mb-4">We couldn&apos;t check your account at this time. Please try again later.</div>
+        </div>
+      );
+    }
+    if (!userRole) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(`[Auth] Failed sign in: user does not exist for stackAuthId ${stackAuthId}`);
+      }
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-background text-foreground">
+          <div className="text-2xl font-bold text-red-600 mb-2">User not found</div>
+          <div className="text-muted-foreground mb-4">No account exists for this sign in. Please sign up to create a new account.</div>
+          <Link href={"/handler/sign-up?intent=sign-up"} className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition">Sign up instead</Link>
+        </div>
+      );
+    }
+    // Defensive: check for missing role
+    if (!userRole.role) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-background text-foreground">
+          <div className="text-2xl font-bold text-red-600 mb-2">Account Issue</div>
+          <div className="text-muted-foreground mb-4">Your account is missing a role. Please contact support.</div>
+        </div>
+      );
+    }
+    if (userRole.role === "candidate") redirect("/dashboard/candidate");
+    else if (userRole.role === "team-leader") redirect("/dashboard/team-leader");
+    else redirect("/dashboard");
+    return null;
   }
 
-  // Fallback for legacy, or direct access
+  if (intent === "sign-up") {
+    // --- STRICT SIGN UP LOGIC ---
+    if (!stackAuthId) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-background text-foreground">
+          <div className="text-2xl font-bold text-blue-700 mb-2">Sign Up Required</div>
+          <div className="text-muted-foreground mb-4">To create a new account, please sign up below.</div>
+          <div className="mb-2">
+            <StackHandler fullPage app={stackServerApp} routeProps={props} />
+          </div>
+        </div>
+      );
+    }
+    let userRole: any = null;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/role/get`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stackAuthId }),
+        cache: "no-store",
+      });
+      if (res.ok) {
+        userRole = await res.json();
+      }
+    } catch (err) {
+      // Defensive: show error if DB check fails
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-background text-foreground">
+          <div className="text-2xl font-bold text-red-600 mb-2">Server Error</div>
+          <div className="text-muted-foreground mb-4">We couldn&apos;t check your account at this time. Please try again later.</div>
+        </div>
+      );
+    }
+    if (userRole) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(`[Auth] Failed sign up: user already exists for stackAuthId ${stackAuthId}`);
+      }
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-background text-foreground">
+          <div className="text-2xl font-bold text-red-600 mb-2">Account already exists</div>
+          <div className="text-muted-foreground mb-4">An account with this sign in already exists. Please sign in to continue.</div>
+          <Link href={"/handler/sign-in?intent=sign-in"} className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition">Sign in instead</Link>
+        </div>
+      );
+    }
+    // Defensive: ensure team creation errors are handled
+    try {
+      const user = await stackServerApp.getUser({ or: "throw" });
+      if (user) {
+        const teams = await user.listTeams();
+        if (teams.length === 0) {
+          await user.createTeam({ displayName: "My Team" });
+        }
+      }
+    } catch (err) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-background text-foreground">
+          <div className="text-2xl font-bold text-red-600 mb-2">Account Setup Error</div>
+          <div className="text-muted-foreground mb-4">We couldn&apos;t finish setting up your account. Please try again or contact support.</div>
+        </div>
+      );
+    }
+    redirect("/select-role");
+    return null;
+  }
+
+  // --- REMOVE SHARED FALLBACKS: Only legacy or direct access below ---
   if (stackAuthId) {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/role/get`, {
@@ -112,10 +165,9 @@ export default async function Handler(props: any) {
     } catch (e) {
       redirect("/select-role");
     }
-    // Show spinner while redirecting (should not be visible)
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <span className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900" />
+      <div className="flex items-center justify-center min-h-screen bg-background text-foreground">
+        <span className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
       </div>
     );
   }
