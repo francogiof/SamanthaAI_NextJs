@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { UserButton } from "@stackframe/stack";
 import { LucideIcon, Menu } from "lucide-react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
@@ -21,7 +20,7 @@ import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 
 function useSegment(basePath: string) {
   const path = usePathname();
-  const result = path.slice(basePath.length, path.length);
+  const result = path ? path.slice(basePath.length, path.length) : "/";
   return result ? result : "/";
 }
 
@@ -152,12 +151,12 @@ export default function SidebarLayout(props: {
   const { resolvedTheme, setTheme } = useTheme();
 
   return (
-    <div className="w-full flex bg-background text-foreground">
-      <div className="flex-col border-r w-[240px] h-screen sticky top-0 hidden md:flex bg-background">
+    <div className="w-full flex">
+      <div className="flex-col border-r w-[240px] h-screen sticky top-0 hidden md:flex">
         <SidebarContent items={props.items} sidebarTop={props.sidebarTop} basePath={props.basePath} />
       </div>
-      <div className="flex flex-col flex-grow w-0">
-        <div className="h-14 border-b flex items-center justify-between sticky top-0 bg-background/80 z-10 px-4 md:px-6">
+      <div className="flex flex-col flex-grow w-0 items-center justify-center">
+        <div className="h-14 border-b flex items-center justify-between sticky top-0 bg-white dark:bg-black z-10 px-4 md:px-6">
           <div className="hidden md:flex">
             <HeaderBreadcrumb baseBreadcrumb={props.baseBreadcrumb} basePath={props.basePath} items={props.items} />
           </div>
@@ -170,7 +169,7 @@ export default function SidebarLayout(props: {
               <SheetTrigger>
                 <Menu />
               </SheetTrigger>
-              <SheetContent side="left" className="w-[240px] p-0 bg-background">
+              <SheetContent side="left" className="w-[240px] p-0">
                 <SidebarContent
                   onNavigate={() => setSidebarOpen(false)}
                   items={props.items}
@@ -185,15 +184,14 @@ export default function SidebarLayout(props: {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <UserButton
-              colorModeToggle={() =>
-                setTheme(resolvedTheme === "light" ? "dark" : "light")
-              }
-            />
+          {/* Placeholder for new auth button */}
+          <div className="flex items-center">
+            {/* <NewAuthButton /> */}
           </div>
         </div>
-        <div className="flex-grow bg-background text-foreground">{props.children}</div>
+        <div className="flex-grow w-full max-w-5xl px-4 mx-auto flex flex-col items-center justify-center">
+          {props.children}
+        </div>
       </div>
     </div>
   );
