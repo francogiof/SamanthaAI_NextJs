@@ -1,0 +1,2 @@
+submission_id,candidate_id,requirement_id,submission_link,evaluation_score,evaluator_feedback,submitted_at
+1,1,1,https://github.com/alice/ml-project,92,"Well-structured code and clear documentation.",2025-06-25

@@ -1,0 +1,2 @@
+candidate_id,user_id,name,age,cv_path,linkedin,github,experience_years,education,personal_projects,introduction,cv_experience
+1,1,Alice Example,29,/cvs/alice_ml.pdf,https://linkedin.com/in/alice,https://github.com/alice,5,"MSc Computer Science, MIT","ML for Healthcare, Open Source NLP","I'm a passionate ML engineer with 5 years in NLP and healthcare AI.","Worked at HealthAI, built BERT-based models, published 3 papers."

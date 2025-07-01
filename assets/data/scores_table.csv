@@ -1,0 +1,2 @@
+score_id,candidate_id,initial_screening_score,technical_score,behavioral_score,project_score,matching_percentage
+1,1,80,90,88,92,95
