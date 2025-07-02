@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { autoCreateProfileForRole } from '@/lib/models/profileAutoCreate';
 import { getUserRole } from '@/lib/models/userRole';
 
 export async function POST(req: NextRequest) {
@@ -14,6 +15,12 @@ export async function POST(req: NextRequest) {
     if (!userRole) {
       console.error('Role not found for stackAuthId:', stackAuthId);
       return NextResponse.json({ error: 'Role not found' }, { status: 404 });
+    }
+    // Find user_id from user_roles table
+    const db = require('@/lib/db').default;
+    const userRow = db.prepare('SELECT id FROM user_roles WHERE stackAuthId = ?').get(stackAuthId);
+    if (userRow && userRow.id) {
+      autoCreateProfileForRole(userRow.id, stackAuthId);
     }
     return NextResponse.json({ role: userRole.role });
   } catch (error) {
