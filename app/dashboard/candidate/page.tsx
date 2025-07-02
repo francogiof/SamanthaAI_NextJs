@@ -5,6 +5,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Briefcase, Star, PlusCircle, BookOpen, User } from "lucide-react";
 import { useState } from "react";
+import { useRequirementsForCandidate } from "./hooks";
+import { useEffect } from "react";
 
 const navigationItems: SidebarItem[] = [
 	{
@@ -66,13 +68,29 @@ const defaultJobOffers = [
 	},
 ];
 
+// Dummy userId for demo; replace with real user context
+const userId = 36; // TODO: Replace with actual logged-in user id
+
 export default function CandidateDashboard() {
 	const [search, setSearch] = useState("");
 	const [jobOffers, setJobOffers] = useState(defaultJobOffers);
 	const [newSimUrl, setNewSimUrl] = useState("");
 
+	const { requirements, loading } = useRequirementsForCandidate(userId);
+
+	// Merge requirements from DB with hardcoded offers
+	const dbOffers = requirements.map((req) => ({
+		id: `db-${req.requirement_id}`,
+		title: req.role_name,
+		company: req.creator_role === "candidate" ? "Simulated (You)" : "Team Leader",
+		status: req.creator_role === "candidate" ? "Practice Mode" : "In Progress",
+		appliedAt: "--",
+		premium: false,
+	}));
+	const allOffers = [...jobOffers, ...dbOffers];
+
 	// Filter job offers by search
-	const filteredOffers = jobOffers.filter((offer) =>
+	const filteredOffers = allOffers.filter((offer) =>
 		offer.title.toLowerCase().includes(search.toLowerCase()) ||
 		offer.company.toLowerCase().includes(search.toLowerCase())
 	);
