@@ -18,16 +18,19 @@ export function submitCandidateAnswer(candidateId: number, questionId: number, q
   // Only one answer per candidate/question
   const exists = db.prepare('SELECT * FROM candidate_answers_table WHERE candidate_id = ? AND question_id = ?').get(candidateId, questionId);
   if (exists) {
-    console.log(`[Answers] Candidate ${candidateId} already answered question ${questionId}`);
+    console.log(`[Answers] Candidate ${candidateId} already answered question ${questionId}:`, exists);
     return exists;
   }
   db.prepare(`INSERT INTO candidate_answers_table (candidate_id, question_id, question_type, user_answer) VALUES (?, ?, ?, ?)`)
     .run(candidateId, questionId, questionType, userAnswer);
-  console.log(`[Answers] Candidate ${candidateId} answered question ${questionId}`);
-  return db.prepare('SELECT * FROM candidate_answers_table WHERE candidate_id = ? AND question_id = ?').get(candidateId, questionId);
+  const inserted = db.prepare('SELECT * FROM candidate_answers_table WHERE candidate_id = ? AND question_id = ?').get(candidateId, questionId);
+  console.log(`[Answers] Candidate ${candidateId} answered question ${questionId}:`, inserted);
+  return inserted;
 }
 
 export function listAnswersForCandidate(candidateId: number) {
   initCandidateAnswersTable();
-  return db.prepare('SELECT * FROM candidate_answers_table WHERE candidate_id = ?').all(candidateId);
+  const answers = db.prepare('SELECT * FROM candidate_answers_table WHERE candidate_id = ?').all(candidateId);
+  console.log(`[Answers] Listing answers for candidate ${candidateId}:`, answers);
+  return answers;
 }

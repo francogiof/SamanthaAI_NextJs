@@ -12,7 +12,7 @@ export function initCandidateAssignmentsTable() {
   )`).run();
 }
 
-export function assignRequirementToCandidate(requirementId: number, candidateId: number, assignedBy: number) {
+export function assignRequirementToCandidate(requirementId: number, candidateId: number, assignedBy: number, assignmentType: 'real' | 'simulation' = 'real') {
   initCandidateAssignmentsTable();
   // Only assign if not already assigned
   const exists = db.prepare('SELECT * FROM candidate_assignments_table WHERE requirement_id = ? AND candidate_id = ?').get(requirementId, candidateId);
@@ -21,12 +21,15 @@ export function assignRequirementToCandidate(requirementId: number, candidateId:
     return exists;
   }
   const assignedAt = new Date().toISOString();
-  db.prepare(`INSERT INTO candidate_assignments_table (requirement_id, candidate_id, assigned_by, assigned_at, status) VALUES (?, ?, ?, ?, 'assigned')`).run(requirementId, candidateId, assignedBy, assignedAt);
-  console.log(`[Assignment] Assigned requirement ${requirementId} to candidate ${candidateId}`);
+  db.prepare(`INSERT INTO candidate_assignments_table (requirement_id, candidate_id, assigned_by, assigned_at, status) VALUES (?, ?, ?, ?, ?)`)
+    .run(requirementId, candidateId, assignedBy, assignedAt, assignmentType === 'simulation' ? 'simulated' : 'assigned');
+  console.log(`[Assignment] Assigned requirement ${requirementId} to candidate ${candidateId} by user ${assignedBy} at ${assignedAt} (type: ${assignmentType})`);
   return db.prepare('SELECT * FROM candidate_assignments_table WHERE requirement_id = ? AND candidate_id = ?').get(requirementId, candidateId);
 }
 
 export function listAssignmentsForCandidate(candidateId: number) {
   initCandidateAssignmentsTable();
-  return db.prepare('SELECT * FROM candidate_assignments_table WHERE candidate_id = ?').all(candidateId);
+  const assignments = db.prepare('SELECT * FROM candidate_assignments_table WHERE candidate_id = ?').all(candidateId);
+  console.log(`[Assignment] Listing assignments for candidate ${candidateId}:`, assignments);
+  return assignments;
 }

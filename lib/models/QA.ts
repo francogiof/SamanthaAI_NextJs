@@ -12,10 +12,14 @@ export function initQATable() {
 
 export function listQuestionsForRequirement(requirementId: number) {
   initQATable();
-  return db.prepare('SELECT * FROM QA_table WHERE requirement_id = ?').all(requirementId);
+  const questions = db.prepare('SELECT * FROM QA_table WHERE requirement_id = ?').all(requirementId);
+  console.log(`[QA] Listing questions for requirement ${requirementId}:`, questions);
+  return questions;
 }
 
 export function getQuestionById(questionId: number) {
   initQATable();
-  return db.prepare('SELECT * FROM QA_table WHERE question_id = ?').get(questionId);
+  const question = db.prepare('SELECT * FROM QA_table WHERE question_id = ?').get(questionId);
+  console.log(`[QA] Get question by id ${questionId}:`, question);
+  return question;
 }

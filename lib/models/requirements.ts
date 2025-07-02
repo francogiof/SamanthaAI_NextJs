@@ -15,10 +15,14 @@ export function initRequirementsTable() {
 
 export function getRequirementById(requirementId: number) {
   initRequirementsTable();
-  return db.prepare('SELECT * FROM requirements_table WHERE requirement_id = ?').get(requirementId);
+  const req = db.prepare('SELECT * FROM requirements_table WHERE requirement_id = ?').get(requirementId);
+  console.log(`[Requirements] Get requirement by id ${requirementId}:`, req);
+  return req;
 }
 
 export function listRequirements() {
   initRequirementsTable();
-  return db.prepare('SELECT * FROM requirements_table').all();
+  const requirements = db.prepare('SELECT * FROM requirements_table').all();
+  console.log('[Requirements] Listing all requirements:', requirements);
+  return requirements;
 }

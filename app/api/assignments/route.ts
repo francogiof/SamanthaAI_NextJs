@@ -3,11 +3,11 @@ import { assignRequirementToCandidate } from '@/lib/models/candidateAssignments'
 
 export async function POST(req: NextRequest) {
   try {
-    const { requirementId, candidateId, assignedBy } = await req.json();
+    const { requirementId, candidateId, assignedBy, assignmentType } = await req.json();
     if (!requirementId || !candidateId || !assignedBy) {
       return NextResponse.json({ error: 'Missing input' }, { status: 400 });
     }
-    const assignment = assignRequirementToCandidate(requirementId, candidateId, assignedBy);
+    const assignment = assignRequirementToCandidate(requirementId, candidateId, assignedBy, assignmentType || 'real');
     return NextResponse.json({ assignment });
   } catch (error) {
     console.log('[API/assignments] Error:', error);
