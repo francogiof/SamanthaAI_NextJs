@@ -37,6 +37,8 @@ export function StepProgressBar({
 	// Calculate the left offset for the line to start at the center of the first circle
 	const lineLeft = `calc((100% / (${stepCount} * 2)))`;
 	const lineRight = `calc((100% / (${stepCount} * 2)))`;
+	// To move the line up or down, adjust the 'top' property below. Lower values move it up, higher values move it down.
+	// Example: top: `calc(50% - 16px)` moves the line 16px above the vertical center of the circles.
 	return (
 		<div className="flex flex-col items-center w-full">
 			{/* Add more space below the title for better separation */}
@@ -49,10 +51,10 @@ export function StepProgressBar({
 				<div
 					className="absolute z-0 pointer-events-none"
 					style={{
-						left: `calc(${100 / (stepCount * 2)}% - ${circleDiameter / 2}px)`,
-						right: `calc(${100 / (stepCount * 2)}% - ${circleDiameter / 2}px)`,
-						top: `calc(50% - 1px)`,
-						height: 2,
+						left: `calc(${100 / (stepCount * 2)}% - ${circleDiameter / 3}px)`,
+						right: `calc(${100 / (stepCount * 2)}% - ${circleDiameter / 3}px)`,
+						top: `calc(50% - 20px)`, // Move the line 12px above the center of the circles
+						height: 1,
 					}}
 				>
 					<div className="relative w-full h-2 rounded-full bg-muted-foreground/30">
@@ -72,14 +74,15 @@ export function StepProgressBar({
 						<li
 							key={step.label}
 							className="flex-1 flex flex-col items-center relative"
+							style={{ minWidth: 56, display: 'flex', alignItems: 'center' }} // Reserve space for largest circle
 						>
 							<button
 								className={`rounded-full w-12 h-12 flex items-center justify-center border-2 transition-all duration-200 shadow-lg ${
 									idx < currentStep
 										? "bg-green-500 text-white border-green-500"
-									: idx === currentStep
-									? "bg-primary/80 text-white border-primary"
-									: "bg-muted text-muted-foreground border-muted-foreground/30"
+										: idx === currentStep
+										? "bg-[#444950] text-white border-[#888c94] border-opacity-60"
+										: "bg-muted bg-opacity-10 text-muted-foreground border-muted-foreground/60"
 								}`}
 								onClick={() => onStepClick?.(idx)}
 								aria-label={step.label}
