@@ -7,6 +7,7 @@ import { Briefcase, Star, PlusCircle, BookOpen, User } from "lucide-react";
 import { useState } from "react";
 import { useRequirementsForCandidate } from "./hooks";
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 const navigationItems: SidebarItem[] = [
 	{
@@ -68,6 +69,17 @@ const defaultJobOffers = [
 	},
 ];
 
+// Type for job offers to allow DB and hardcoded offers
+type JobOffer = {
+	id: string | number;
+	title: string;
+	company: string;
+	status: string;
+	appliedAt: string;
+	premium?: boolean;
+	requirementId?: number;
+};
+
 // Dummy userId for demo; replace with real user context
 const userId = 36; // TODO: Replace with actual logged-in user id
 
@@ -75,21 +87,19 @@ export default function CandidateDashboard() {
 	const [search, setSearch] = useState("");
 	const [jobOffers, setJobOffers] = useState(defaultJobOffers);
 	const [newSimUrl, setNewSimUrl] = useState("");
+	const router = useRouter();
 
 	const { requirements, loading } = useRequirementsForCandidate(userId);
-
-	// Merge requirements from DB with hardcoded offers
-	const dbOffers = requirements.map((req) => ({
+	const dbOffers: JobOffer[] = requirements.map((req) => ({
 		id: `db-${req.requirement_id}`,
 		title: req.role_name,
 		company: req.creator_role === "candidate" ? "Simulated (You)" : "Team Leader",
 		status: req.creator_role === "candidate" ? "Practice Mode" : "In Progress",
 		appliedAt: "--",
 		premium: false,
+		requirementId: req.requirement_id,
 	}));
-	const allOffers = [...jobOffers, ...dbOffers];
-
-	// Filter job offers by search
+	const allOffers: JobOffer[] = [...jobOffers, ...dbOffers];
 	const filteredOffers = allOffers.filter((offer) =>
 		offer.title.toLowerCase().includes(search.toLowerCase()) ||
 		offer.company.toLowerCase().includes(search.toLowerCase())
@@ -130,8 +140,16 @@ export default function CandidateDashboard() {
 						/>
 						<div className="space-y-2">
 							{filteredOffers.length === 0 && <div className="text-muted-foreground">No job offers found.</div>}
-							{filteredOffers.map(offer => (
-								<Card key={offer.id} className="flex flex-col md:flex-row items-center justify-between p-4 mb-2 border bg-muted/50">
+							{filteredOffers.map((offer: JobOffer) => (
+								<Card
+									key={offer.id}
+									className="flex flex-col md:flex-row items-center justify-between p-4 mb-2 border bg-muted/50 cursor-pointer hover:bg-primary/10 transition"
+									onClick={() => {
+										if (offer.requirementId) {
+											router.push(`/dashboard/candidate/application/${offer.requirementId}`);
+										}
+									}}
+								>
 									<div>
 										<div className="font-semibold text-lg">{offer.title}</div>
 										<div className="text-sm text-muted-foreground">{offer.company}</div>
