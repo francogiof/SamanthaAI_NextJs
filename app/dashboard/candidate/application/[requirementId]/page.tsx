@@ -3,6 +3,7 @@ import { useState } from "react";
 import { StepProgressBar } from "@/components/step-progress-bar";
 import SidebarLayout, { SidebarItem } from "@/components/sidebar-layout";
 import { Briefcase, PlusCircle, Star, User } from "lucide-react";
+import CVUpload from "@/components/cv-upload";
 
 const navigationItems: SidebarItem[] = [
 	{
@@ -41,6 +42,24 @@ const navigationItems: SidebarItem[] = [
 
 export default function CandidateApplicationSubdashboard() {
 	const [currentStep, setCurrentStep] = useState(0);
+	const [cvConfirmed, setCvConfirmed] = useState(false);
+	const [profile, setProfile] = useState<any>(null);
+
+	function handleCvConfirm(cvFile: File | null, parsedProfile: any) {
+		// Simulate updating candidate_table (replace with real API call in production)
+		setProfile(parsedProfile);
+		setCvConfirmed(true);
+		// Call backend to update candidate profile
+		fetch("/api/candidate/update", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				userId: 36, // TODO: Replace with real user id from session
+				profile: parsedProfile,
+			}),
+		});
+		setTimeout(() => setCurrentStep(1), 800); // Unlock Step 2 after short delay
+	}
 
 	return (
 		<SidebarLayout basePath="/dashboard/candidate" items={navigationItems}>
@@ -53,21 +72,31 @@ export default function CandidateApplicationSubdashboard() {
 					onStepClick={setCurrentStep}
 				/>
 				<div className="mt-8 p-6 bg-card rounded-xl shadow">
-					<h2 className="text-lg font-semibold mb-2 ml-1">
-						Step {currentStep + 1}:{" "}
-						{[
-							"CV Upload & Profile Creation",
-							"Screening & Role Introduction",
-							"Behavioral Interview",
-							"Technical Interview",
-							"Mini Project Challenge",
-							"Summary & Wait",
-						][currentStep]}
-					</h2>
-					<p className="text-muted-foreground ml-1">
-						(Step content placeholder. In future stages, this will show the
-						interactive UI for each step.)
-					</p>
+					{currentStep === 0 && !cvConfirmed && (
+						<CVUpload onConfirm={handleCvConfirm} />
+					)}
+					{currentStep === 0 && cvConfirmed && profile && (
+						<div className="text-green-600 font-semibold">
+							CV uploaded and profile confirmed! Proceeding to next step...
+						</div>
+					)}
+					{currentStep > 0 && (
+						<div>
+							<h2 className="text-lg font-semibold mb-2 ml-1">
+								Step {currentStep + 1}:{" "}
+								{[
+									"Screening & Role Introduction",
+									"Behavioral Interview",
+									"Technical Interview",
+									"Mini Project Challenge",
+								][currentStep - 1]}
+							</h2>
+							<p className="text-muted-foreground ml-1">
+								(Step content placeholder. In future stages, this will show
+								the interactive UI for each step.)
+							</p>
+						</div>
+					)}
 				</div>
 			</div>
 		</SidebarLayout>
