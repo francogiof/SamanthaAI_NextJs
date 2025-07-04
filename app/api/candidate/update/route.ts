@@ -10,7 +10,14 @@ export async function POST(req: NextRequest) {
     }
     // Ensure candidate row exists
     createCandidateProfile(Number(userId));
-    const updated = updateCandidateProfile(Number(userId), profile);
+    // Serialize object/array fields to JSON strings
+    const serializableProfile = { ...profile };
+    ['education', 'personal_projects', 'cv_experience'].forEach((key) => {
+      if (serializableProfile[key] && typeof serializableProfile[key] !== 'string') {
+        serializableProfile[key] = JSON.stringify(serializableProfile[key]);
+      }
+    });
+    const updated = updateCandidateProfile(Number(userId), serializableProfile);
     return NextResponse.json({ updated });
   } catch (error) {
     console.log('[API/candidate/update] Error:', error);
