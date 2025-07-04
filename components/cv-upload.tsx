@@ -9,19 +9,19 @@ export default function CVUpload({ onConfirm, initialProfile }: CVUploadProps) {
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [parsing, setParsing] = useState(false);
-  const [parsedProfile, setParsedProfile] = useState<any>(initialProfile || null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [extractedText, setExtractedText] = useState<string | null>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] || null;
     setCvFile(file);
-    setParsedProfile(null);
     setError(null);
+    setExtractedText(null);
     if (file) {
       setParsing(true);
       setPreviewUrl(URL.createObjectURL(file));
-      // Upload to /api/parse-cv and get structured profile
+      // Upload to /api/parse-cv and get extracted text
       const formData = new FormData();
       formData.append('file', file);
       try {
@@ -30,14 +30,14 @@ export default function CVUpload({ onConfirm, initialProfile }: CVUploadProps) {
           body: formData,
         });
         const data = await res.json();
-        if (res.ok && data.profile) {
-          setParsedProfile(data.profile);
+        if (res.ok && data.extractedText) {
+          setExtractedText(data.extractedText);
         } else {
-          setParsedProfile(null);
-          setError(data.error || 'Failed to parse CV. Please enter your details manually.');
+          setExtractedText(null);
+          setError(data.error || 'Failed to extract text from PDF.');
         }
       } catch (err) {
-        setParsedProfile(null);
+        setExtractedText(null);
         setError('Server error. Please try again.');
       }
       setParsing(false);
@@ -47,8 +47,8 @@ export default function CVUpload({ onConfirm, initialProfile }: CVUploadProps) {
   }
 
   function handleNext() {
-    if (parsedProfile) {
-      onConfirm(cvFile, parsedProfile);
+    if (cvFile) {
+      onConfirm(cvFile, null);
     }
   }
 
@@ -75,34 +75,20 @@ export default function CVUpload({ onConfirm, initialProfile }: CVUploadProps) {
       )}
       {parsing && <div className="text-blue-500">Parsing CV...</div>}
       {error && <div className="text-red-500 text-sm">{error}</div>}
-      {parsedProfile && !parsing && (
-        <div className="bg-muted/40 rounded p-3 mt-2">
-          <div className="font-semibold mb-1">Parsed Profile Preview</div>
-          <div><b>Name:</b> {parsedProfile.name}</div>
-          {parsedProfile.age && <div><b>Age:</b> {parsedProfile.age}</div>}
-          {parsedProfile.linkedin && <div><b>LinkedIn:</b> {parsedProfile.linkedin}</div>}
-          {parsedProfile.github && <div><b>GitHub:</b> {parsedProfile.github}</div>}
-          {parsedProfile.experience_years && <div><b>Experience Years:</b> {parsedProfile.experience_years}</div>}
-          {parsedProfile.education && <div><b>Education:</b> {parsedProfile.education}</div>}
-          {parsedProfile.personal_projects && <div><b>Personal Projects:</b> {parsedProfile.personal_projects}</div>}
-          {parsedProfile.introduction && <div><b>Introduction:</b> {parsedProfile.introduction}</div>}
-          {parsedProfile.cv_experience && (
-            <div>
-              <b>Experience:</b>
-              <ul className="list-disc ml-6">
-                {Array.isArray(parsedProfile.cv_experience)
-                  ? parsedProfile.cv_experience.map((exp: any, i: number) => (
-                      <li key={i}>{typeof exp === 'string' ? exp : JSON.stringify(exp)}</li>
-                    ))
-                  : <li>{parsedProfile.cv_experience}</li>}
-              </ul>
-            </div>
-          )}
+      {extractedText && !parsing && (
+        <div className="bg-muted/30 rounded p-3 mt-4">
+          <div className="font-semibold mb-1">Extracted CV Text</div>
+          <textarea
+            className="w-full h-40 p-2 border rounded bg-background text-foreground text-xs font-mono"
+            value={extractedText}
+            readOnly
+            style={{ resize: 'vertical' }}
+          />
         </div>
       )}
       <button
         className="mt-2 bg-blue-600 text-white rounded px-4 py-2 font-semibold disabled:opacity-60 self-end"
-        disabled={!parsedProfile || parsing}
+        disabled={!cvFile || parsing}
         onClick={handleNext}
       >
         Next Stage
