@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { User, MessageCircle, Share2, Mic, MicOff, Video, VideoOff, Phone } from 'lucide-react';
+import { User, MessageCircle, Share2, Mic, MicOff, Video, VideoOff, Phone, Volume2, VolumeX } from 'lucide-react';
 
 interface ScreeningInterfaceProps {
   requirementId: string;
@@ -37,8 +37,16 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
   const [screeningScore, setScreeningScore] = useState<number | null>(null);
   const [passesScreening, setPassesScreening] = useState<boolean | null>(null);
 
+  // Speech functionality states
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const responseInputRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   // Agent slides for presentation
   const agentSlides: AgentSlide[] = [
@@ -84,6 +92,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
   useEffect(() => {
     console.log('[ScreeningInterface] Component mounted with props:', { requirementId, userId });
     initializeScreening();
+    initializeSpeech();
   }, [requirementId, userId]);
 
   useEffect(() => {
@@ -98,6 +107,110 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
     console.log('[ScreeningInterface] Messages updated, scrolling to bottom');
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const initializeSpeech = async () => {
+    try {
+      console.log('[ScreeningInterface] Initializing speech functionality...');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          setAudioChunks(prev => [...prev, event.data]);
+        }
+      };
+
+      recorder.onstop = async () => {
+        console.log('[ScreeningInterface] Recording stopped, processing audio...');
+        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        await processAudioToText(audioBlob);
+        setAudioChunks([]);
+      };
+
+      setMediaRecorder(recorder);
+      console.log('[ScreeningInterface] Speech functionality initialized');
+    } catch (error) {
+      console.error('[ScreeningInterface] Error initializing speech:', error);
+    }
+  };
+
+  const processAudioToText = async (audioBlob: Blob) => {
+    try {
+      console.log('[ScreeningInterface] Converting speech to text...');
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.wav');
+
+      const response = await fetch('/api/speech/stt', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      
+      if (data.success && data.text) {
+        console.log('[ScreeningInterface] Speech transcribed:', data.text);
+        setCandidateResponse(data.text);
+        // Auto-send the transcribed text
+        handleSendMessage(data.text);
+      } else {
+        console.error('[ScreeningInterface] STT failed:', data.error);
+      }
+    } catch (error) {
+      console.error('[ScreeningInterface] Error processing audio:', error);
+    }
+  };
+
+  const playAgentSpeech = async (text: string) => {
+    if (!audioEnabled) return;
+    
+    try {
+      console.log('[ScreeningInterface] Generating speech for:', text);
+      setIsPlayingAudio(true);
+
+      const response = await fetch('/api/speech/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice: 'sarah' }),
+      });
+
+      if (response.ok) {
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        if (audioRef.current) {
+          audioRef.current.src = audioUrl;
+          audioRef.current.onended = () => {
+            setIsPlayingAudio(false);
+            URL.revokeObjectURL(audioUrl);
+          };
+          await audioRef.current.play();
+        }
+      } else {
+        console.error('[ScreeningInterface] TTS failed:', response.status);
+        setIsPlayingAudio(false);
+      }
+    } catch (error) {
+      console.error('[ScreeningInterface] Error playing speech:', error);
+      setIsPlayingAudio(false);
+    }
+  };
+
+  const startRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === 'inactive') {
+      console.log('[ScreeningInterface] Starting recording...');
+      setIsRecording(true);
+      setAudioChunks([]);
+      mediaRecorder.start();
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      console.log('[ScreeningInterface] Stopping recording...');
+      setIsRecording(false);
+      mediaRecorder.stop();
+    }
+  };
 
   const initializeScreening = async () => {
     try {
@@ -118,7 +231,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
         
         // Start agent presentation
         setTimeout(() => {
-          addAgentMessage('Hello! I\'m Sarah, your screening interviewer. Welcome to TechCorp Solutions!');
+          const welcomeMessage = 'Hello! I\'m Sarah, your screening interviewer. Welcome to TechCorp Solutions! How are you today?';
+          addAgentMessage(welcomeMessage);
+          playAgentSpeech(welcomeMessage);
           setCurrentSlide(0);
         }, 1000);
       } else {
@@ -152,33 +267,61 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
     setMessages(prev => [...prev, newMessage]);
   };
 
-  const handleSendMessage = () => {
-    if (!candidateResponse.trim()) return;
+  const handleSendMessage = async (text?: string) => {
+    const messageText = text || candidateResponse;
+    if (!messageText.trim()) return;
     
-    console.log('[ScreeningInterface] Sending candidate response:', candidateResponse);
-    addCandidateMessage(candidateResponse);
+    console.log('[ScreeningInterface] Sending candidate response:', messageText);
+    addCandidateMessage(messageText);
+    
+    // Clear input
+    if (!text) {
+      setCandidateResponse('');
+    }
     
     // Simulate agent processing
     setAgentTyping(true);
-    setTimeout(() => {
-      processCandidateResponse(candidateResponse);
-      setCandidateResponse('');
-    }, 2000);
-  };
-
-  const processCandidateResponse = (response: string) => {
-    console.log('[ScreeningInterface] Processing candidate response:', response);
     
-    // Simple response analysis (in real implementation, this would use AI)
-    const responseQuality = Math.random() * 100; // Simulated score
-    const agentFeedback = responseQuality > 70 
-      ? 'Excellent answer! That shows strong experience.'
-      : responseQuality > 40 
-      ? 'Good response, but could you elaborate more?'
-      : 'I\'d like to hear more about your specific experience.';
+    try {
+      // Get AI response using conversation API
+      const response = await fetch('/api/screening/conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidateMessage: messageText,
+          screeningContext,
+          conversationHistory: messages,
+          currentQuestion
+        })
+      });
 
-    addAgentMessage(agentFeedback);
-    setScreeningProgress(prev => Math.min(prev + 25, 100));
+      const data = await response.json();
+      
+      if (data.success) {
+        setTimeout(() => {
+          addAgentMessage(data.response);
+          playAgentSpeech(data.response);
+          setScreeningProgress(prev => Math.min(prev + 25, 100));
+        }, 1000);
+      } else {
+        // Fallback to simple response
+        setTimeout(() => {
+          const fallbackResponse = 'Thank you for that response. Could you tell me more about your experience?';
+          addAgentMessage(fallbackResponse);
+          playAgentSpeech(fallbackResponse);
+          setScreeningProgress(prev => Math.min(prev + 25, 100));
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('[ScreeningInterface] Error getting AI response:', error);
+      // Fallback response
+      setTimeout(() => {
+        const fallbackResponse = 'Thank you for sharing that. Let me ask you another question.';
+        addAgentMessage(fallbackResponse);
+        playAgentSpeech(fallbackResponse);
+        setScreeningProgress(prev => Math.min(prev + 25, 100));
+      }, 1000);
+    }
   };
 
   const completeScreening = async () => {
@@ -218,6 +361,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
           : `Thank you for your time. Your screening score is ${data.score}/100. We'll review your application and get back to you.`;
 
         addAgentMessage(finalMessage);
+        playAgentSpeech(finalMessage);
         console.log('[ScreeningInterface] Screening completed successfully');
       }
     } catch (error) {
@@ -233,6 +377,11 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
   const toggleVideo = () => {
     console.log('[ScreeningInterface] Toggling video:', !isVideoOn);
     setIsVideoOn(!isVideoOn);
+  };
+
+  const toggleAudio = () => {
+    console.log('[ScreeningInterface] Toggling audio:', !audioEnabled);
+    setAudioEnabled(!audioEnabled);
   };
 
   const nextSlide = () => {
@@ -258,6 +407,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
 
   return (
     <div className="h-screen bg-gray-900 flex flex-col">
+      {/* Hidden audio element for TTS */}
+      <audio ref={audioRef} style={{ display: 'none' }} />
+      
       {/* Header */}
       <div className="bg-gray-800 text-white p-4 flex items-center justify-between">
         <div className="flex items-center space-x-4">
@@ -273,6 +425,12 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
         </div>
         
         <div className="flex items-center space-x-2">
+          <button
+            onClick={toggleAudio}
+            className={`p-2 rounded-full ${!audioEnabled ? 'bg-red-600' : 'bg-gray-700'} hover:bg-opacity-80`}
+          >
+            {!audioEnabled ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+          </button>
           <button
             onClick={toggleMute}
             className={`p-2 rounded-full ${isMuted ? 'bg-red-600' : 'bg-gray-700'} hover:bg-opacity-80`}
@@ -303,6 +461,13 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
               </div>
               <h3 className="text-white font-semibold">Sarah (Interviewer)</h3>
               <p className="text-gray-400 text-sm">Screening Agent</p>
+              {isPlayingAudio && (
+                <div className="mt-2 flex space-x-1">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+              )}
             </div>
 
             {/* Candidate Video */}
@@ -316,6 +481,12 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
               <p className="text-gray-400 text-sm">
                 {isVideoOn ? 'Video On' : 'Video Off'} • {isMuted ? 'Muted' : 'Unmuted'}
               </p>
+              {isRecording && (
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                  <span className="text-red-400 text-sm">Recording...</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -379,6 +550,17 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
           {/* Input Area */}
           <div className="p-4 border-t border-gray-700">
             <div className="flex space-x-2">
+              <button
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={isMuted || screeningComplete}
+                className={`p-2 rounded-lg ${
+                  isRecording 
+                    ? 'bg-red-600 text-white' 
+                    : 'bg-gray-700 text-white hover:bg-gray-600'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </button>
               <input
                 ref={responseInputRef}
                 type="text"
@@ -390,13 +572,16 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
                 disabled={screeningComplete}
               />
               <button
-                onClick={handleSendMessage}
+                onClick={() => handleSendMessage()}
                 disabled={!candidateResponse.trim() || screeningComplete}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Send
               </button>
             </div>
+            <p className="text-xs text-gray-400 mt-2">
+              {isRecording ? 'Recording... Click microphone to stop' : 'Click microphone to record or type your response'}
+            </p>
           </div>
         </div>
       </div>

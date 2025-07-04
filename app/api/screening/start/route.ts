@@ -1,6 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 
+interface Requirement {
+  requirement_id: string;
+  role_name: string;
+  creator_role: string;
+  required_skills?: string;
+  [key: string]: any;
+}
+
+interface Candidate {
+  candidate_id: string;
+  user_id: number;
+  name: string;
+  education?: string;
+  personal_projects?: string;
+  cv_experience?: string;
+  [key: string]: any;
+}
+
+interface Score {
+  initial_screening_score?: number;
+  [key: string]: any;
+}
+
 export async function POST(req: NextRequest) {
   try {
     console.log('[API/screening/start] Starting screening process...');
@@ -15,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     // Read requirement data
     console.log('[API/screening/start] Reading requirement data for ID:', requirementId);
-    const requirement = db.prepare('SELECT * FROM requirements_table WHERE requirement_id = ?').get(requirementId);
+    const requirement = db.prepare('SELECT * FROM requirements_table WHERE requirement_id = ?').get(requirementId) as Requirement | undefined;
     console.log('[API/screening/start] Requirement data:', requirement);
     
     if (!requirement) {
@@ -25,7 +48,7 @@ export async function POST(req: NextRequest) {
 
     // Read candidate data
     console.log('[API/screening/start] Reading candidate data for user ID:', userId);
-    const candidate = db.prepare('SELECT * FROM candidate_table WHERE user_id = ?').get(userId);
+    const candidate = db.prepare('SELECT * FROM candidate_table WHERE user_id = ?').get(userId) as Candidate | undefined;
     console.log('[API/screening/start] Candidate data:', candidate);
     
     if (!candidate) {
@@ -35,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     // Check if screening score already exists
     console.log('[API/screening/start] Checking existing screening score for candidate ID:', candidate.candidate_id);
-    const existingScore = db.prepare('SELECT * FROM scores_table WHERE candidate_id = ?').get(candidate.candidate_id);
+    const existingScore = db.prepare('SELECT * FROM scores_table WHERE candidate_id = ?').get(candidate.candidate_id) as Score | undefined;
     console.log('[API/screening/start] Existing score:', existingScore);
 
     // Parse JSON fields if they exist
