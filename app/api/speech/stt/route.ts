@@ -12,7 +12,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing audio file' }, { status: 400 });
     }
 
-    console.log('[API/speech/stt] Received audio file:', audioFile.name, 'size:', audioFile.size);
+    console.log('[API/speech/stt] Received audio file:', audioFile.name, 'size:', audioFile.size, 'type:', audioFile.type);
+
+    if (audioFile.size === 0) {
+      console.log('[API/speech/stt] Audio file is empty');
+      return NextResponse.json({ error: 'Audio file is empty' }, { status: 400 });
+    }
 
     const apiKey = process.env.LEMONFOX_LLM_KEY; // Using LLM key for STT
     if (!apiKey) {
@@ -23,6 +28,8 @@ export async function POST(req: NextRequest) {
     // Convert audio file to base64
     const audioBuffer = await audioFile.arrayBuffer();
     const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+
+    console.log('[API/speech/stt] Audio converted to base64, size:', audioBase64.length);
 
     console.log('[API/speech/stt] Calling Lemonfox STT API...');
     

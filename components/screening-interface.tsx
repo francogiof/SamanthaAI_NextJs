@@ -43,10 +43,12 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const [autoRecordCountdown, setAutoRecordCountdown] = useState<number | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const responseInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
   // Agent slides for presentation
   const agentSlides: AgentSlide[] = [
@@ -108,11 +110,37 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Cleanup countdown timer on unmount
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+      }
+    };
+  }, []);
+
   const initializeSpeech = async () => {
     try {
       console.log('[ScreeningInterface] Initializing speech functionality...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      
+      // Try different audio formats for better browser compatibility
+      let mimeType = 'audio/webm;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/webm';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'audio/mp4';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = 'audio/wav';
+          }
+        }
+      }
+      
+      console.log('[ScreeningInterface] Using audio format:', mimeType);
+      
+      const recorder = new MediaRecorder(stream, {
+        mimeType: mimeType
+      });
       
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -122,7 +150,8 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
 
       recorder.onstop = async () => {
         console.log('[ScreeningInterface] Recording stopped, processing audio...');
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        const audioBlob = new Blob(audioChunks, { type: mimeType });
+        console.log('[ScreeningInterface] Audio blob size:', audioBlob.size, 'type:', audioBlob.type);
         await processAudioToText(audioBlob);
         setAudioChunks([]);
       };
@@ -138,7 +167,10 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
     try {
       console.log('[ScreeningInterface] Converting speech to text...');
       const formData = new FormData();
-      formData.append('audio', audioBlob, 'recording.wav');
+      
+      // Use the actual blob type for the filename
+      const fileExtension = audioBlob.type.split('/')[1] || 'webm';
+      formData.append('audio', audioBlob, `recording.${fileExtension}`);
 
       const response = await fetch('/api/speech/stt', {
         method: 'POST',
@@ -154,14 +186,51 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
         handleSendMessage(data.text);
       } else {
         console.error('[ScreeningInterface] STT failed:', data.error);
+        // Show error to user
+        addAgentMessage("I didn't catch that. Could you please repeat your answer?");
       }
     } catch (error) {
       console.error('[ScreeningInterface] Error processing audio:', error);
+      // Show error to user
+      addAgentMessage("I'm having trouble hearing you. Could you please try again?");
     }
   };
 
+  const startAutoRecordingCountdown = () => {
+    if (screeningComplete || isRecording) return;
+    
+    console.log('[ScreeningInterface] Starting auto-recording countdown...');
+    setAutoRecordCountdown(3);
+    
+    countdownRef.current = setInterval(() => {
+      setAutoRecordCountdown(prev => {
+        if (prev === null || prev <= 1) {
+          if (countdownRef.current) {
+            clearInterval(countdownRef.current);
+            countdownRef.current = null;
+          }
+          setAutoRecordCountdown(null);
+          if (!screeningComplete && !isRecording) {
+            console.log('[ScreeningInterface] Auto-starting recording after countdown...');
+            startRecording();
+          }
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
   const playAgentSpeech = async (text: string) => {
-    if (!audioEnabled) return;
+    if (!audioEnabled) {
+      // If audio is disabled, still start countdown
+      setTimeout(() => {
+        if (!screeningComplete && !isRecording) {
+          startAutoRecordingCountdown();
+        }
+      }, 1000);
+      return;
+    }
     
     try {
       console.log('[ScreeningInterface] Generating speech for:', text);
@@ -182,16 +251,22 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
           audioRef.current.onended = () => {
             setIsPlayingAudio(false);
             URL.revokeObjectURL(audioUrl);
+            // Start countdown after agent finishes speaking
+            startAutoRecordingCountdown();
           };
           await audioRef.current.play();
         }
       } else {
         console.error('[ScreeningInterface] TTS failed:', response.status);
         setIsPlayingAudio(false);
+        // Start countdown even if TTS fails
+        startAutoRecordingCountdown();
       }
     } catch (error) {
       console.error('[ScreeningInterface] Error playing speech:', error);
       setIsPlayingAudio(false);
+      // Start countdown even if TTS fails
+      startAutoRecordingCountdown();
     }
   };
 
@@ -485,6 +560,12 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
                 <div className="mt-2 flex items-center gap-2">
                   <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
                   <span className="text-red-400 text-sm">Recording...</span>
+                </div>
+              )}
+              {autoRecordCountdown !== null && !isRecording && (
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
+                  <span className="text-yellow-400 text-sm">Recording in {autoRecordCountdown}s...</span>
                 </div>
               )}
             </div>
