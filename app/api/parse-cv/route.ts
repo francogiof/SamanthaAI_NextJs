@@ -111,12 +111,59 @@ export async function POST(req: NextRequest) {
       }
       extractedText = '';
     }
-    if (!extractedText) {
-      console.log('[API/parse-cv] Failed to extract text from PDF.');
-      return NextResponse.json({ error: 'Failed to extract text from PDF.' }, { status: 500 });
+    // Step 2: Prompt Lemon Fox LLM to parse the CV
+    let profile = null;
+    let llmError = null;
+    if (extractedText) {
+      try {
+        const apiKey = process.env.LEMONFOX_LLM_KEY;
+        const systemPrompt = `You are an AI CV parser. Extract the following fields from the user's CV text and return as JSON: {name, age (if available), linkedin, github, experience_years, education, personal_projects, introduction, cv_experience}. Return only the JSON.`;
+        const userPrompt = extractedText;
+        const body = {
+          model: 'llama-8b-chat',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+        };
+        const res = await fetch('https://api.lemonfox.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error('Lemon Fox LLM error');
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content;
+        console.log('[API/parse-cv] LLM raw content:', content);
+        if (content) {
+          try {
+            profile = JSON.parse(content);
+          } catch (e) {
+            console.error('[API/parse-cv] Error parsing LLM JSON:', e);
+            profile = null;
+          }
+        }
+        console.log('[API/parse-cv] LLM profile:', profile);
+      } catch (err) {
+        llmError = err;
+        console.error('[API/parse-cv] Error during LLM call:', err);
+      }
     }
-    console.log('[API/parse-cv] Successfully extracted text.');
-    return NextResponse.json({ extractedText });
+    // Step 3: Output Validation
+    const required = ['name'];
+    const missingFields = required.filter(f => !(profile && profile[f]));
+    if (!profile || missingFields.length > 0) {
+      return NextResponse.json({
+        error: 'Missing required fields from LLM',
+        missingFields,
+        extractedText,
+      }, { status: 400 });
+    }
+    // Step 4: Return structured profile and extracted text
+    return NextResponse.json({ profile, extractedText });
   } catch (error) {
     console.error('[API/parse-cv] Error (outer catch):', error);
     return NextResponse.json({ error: 'Failed to extract text from PDF.' }, { status: 500 });
