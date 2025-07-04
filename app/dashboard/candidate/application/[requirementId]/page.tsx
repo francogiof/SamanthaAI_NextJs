@@ -67,8 +67,20 @@ export default function CandidateApplicationSubdashboard() {
 						<CVUpload onConfirm={handleCvConfirm} userId={userId} />
 					)}
 					{currentStep === 0 && cvConfirmed && profile && (
-						<div className="text-green-600 font-semibold">
-							CV uploaded and profile confirmed! Proceeding to next step...
+						<div className="flex flex-col gap-4">
+							<div className="text-green-600 font-semibold">
+								CV uploaded and profile confirmed! Proceeding to next step...
+							</div>
+							<div className="flex flex-row gap-2 items-center justify-between mt-4">
+								<button
+									className="bg-blue-600 text-white rounded px-4 py-2 font-semibold disabled:opacity-60"
+									onClick={() => setCurrentStep(1)}
+									disabled={false}
+									style={{ marginLeft: 'auto' }}
+								>
+									Next Stage
+								</button>
+							</div>
 						</div>
 					)}
 					{currentStep > 0 && (
@@ -86,6 +98,16 @@ export default function CandidateApplicationSubdashboard() {
 								(Step content placeholder. In future stages, this will show
 								the interactive UI for each step.)
 							</p>
+							<div className="flex flex-row gap-2 items-center justify-between mt-4">
+								<button
+									className="bg-blue-600 text-white rounded px-4 py-2 font-semibold disabled:opacity-60"
+									onClick={() => setCurrentStep(currentStep + 1)}
+									disabled={true} // TODO: Enable when step is complete
+									style={{ marginLeft: 'auto' }}
+								>
+									Next Stage
+								</button>
+							</div>
 						</div>
 					)}
 				</div>
