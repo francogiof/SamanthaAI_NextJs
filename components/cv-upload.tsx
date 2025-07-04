@@ -3,21 +3,25 @@ import { useRef, useState } from "react";
 export interface CVUploadProps {
   onConfirm: (cvFile: File | null, parsedProfile: any) => void;
   initialProfile?: any;
+  userId: number;
 }
 
-export default function CVUpload({ onConfirm, initialProfile }: CVUploadProps) {
+export default function CVUpload({ onConfirm, initialProfile, userId }: CVUploadProps) {
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [extractedText, setExtractedText] = useState<string | null>(null);
+  const [parsedProfile, setParsedProfile] = useState<any>(initialProfile || null);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] || null;
     setCvFile(file);
     setError(null);
     setExtractedText(null);
+    setParsedProfile(null);
     if (file) {
       setParsing(true);
       setPreviewUrl(URL.createObjectURL(file));
@@ -30,13 +34,20 @@ export default function CVUpload({ onConfirm, initialProfile }: CVUploadProps) {
           body: formData,
         });
         const data = await res.json();
-        if (res.ok && data.extractedText) {
+        if (res.ok && data.profile) {
+          setParsedProfile(data.profile);
+          setExtractedText(data.extractedText || null);
+        } else if (res.ok && data.extractedText) {
+          setParsedProfile(null);
           setExtractedText(data.extractedText);
+          setError('Could not parse profile. Please enter details manually.');
         } else {
+          setParsedProfile(null);
           setExtractedText(null);
           setError(data.error || 'Failed to extract text from PDF.');
         }
       } catch (err) {
+        setParsedProfile(null);
         setExtractedText(null);
         setError('Server error. Please try again.');
       }
@@ -47,8 +58,33 @@ export default function CVUpload({ onConfirm, initialProfile }: CVUploadProps) {
   }
 
   function handleNext() {
-    if (cvFile) {
-      onConfirm(cvFile, null);
+    if (cvFile && parsedProfile) {
+      onConfirm(cvFile, parsedProfile);
+    }
+  }
+
+  async function handleSaveProfile() {
+    if (!parsedProfile) return;
+    setSaveStatus('Saving...');
+    // Ensure user_id and candidate_id are set
+    const profileToSave = {
+      ...parsedProfile,
+      user_id: userId,
+      candidate_id: userId,
+    };
+    try {
+      const res = await fetch('/api/candidate/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, profile: profileToSave }),
+      });
+      if (res.ok) {
+        setSaveStatus('Profile saved!');
+      } else {
+        setSaveStatus('Failed to save profile.');
+      }
+    } catch (err) {
+      setSaveStatus('Server error.');
     }
   }
 
@@ -75,6 +111,12 @@ export default function CVUpload({ onConfirm, initialProfile }: CVUploadProps) {
       )}
       {parsing && <div className="text-blue-500">Parsing CV...</div>}
       {error && <div className="text-red-500 text-sm">{error}</div>}
+      {parsedProfile && !parsing && (
+        <div className="bg-muted/40 rounded p-3 mt-2">
+          <div className="font-semibold mb-1">Parsed Profile Preview</div>
+          <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(parsedProfile, null, 2)}</pre>
+        </div>
+      )}
       {extractedText && !parsing && (
         <div className="bg-muted/30 rounded p-3 mt-4">
           <div className="font-semibold mb-1">Extracted CV Text</div>
@@ -86,13 +128,23 @@ export default function CVUpload({ onConfirm, initialProfile }: CVUploadProps) {
           />
         </div>
       )}
-      <button
-        className="mt-2 bg-blue-600 text-white rounded px-4 py-2 font-semibold disabled:opacity-60 self-end"
-        disabled={!cvFile || parsing}
-        onClick={handleNext}
-      >
-        Next Stage
-      </button>
+      <div className="flex gap-2 self-end">
+        <button
+          className="bg-green-600 text-white rounded px-4 py-2 font-semibold disabled:opacity-60"
+          disabled={!parsedProfile || parsing}
+          onClick={handleSaveProfile}
+        >
+          Save Profile
+        </button>
+        <button
+          className="bg-blue-600 text-white rounded px-4 py-2 font-semibold disabled:opacity-60"
+          disabled={!cvFile || parsing}
+          onClick={handleNext}
+        >
+          Next Stage
+        </button>
+      </div>
+      {saveStatus && <div className="text-xs text-muted-foreground self-end">{saveStatus}</div>}
     </div>
   );
 }

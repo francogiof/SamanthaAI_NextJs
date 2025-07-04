@@ -44,20 +44,11 @@ export default function CandidateApplicationSubdashboard() {
 	const [currentStep, setCurrentStep] = useState(0);
 	const [cvConfirmed, setCvConfirmed] = useState(false);
 	const [profile, setProfile] = useState<any>(null);
+	const userId = 36;
 
 	function handleCvConfirm(cvFile: File | null, parsedProfile: any) {
-		// Simulate updating candidate_table (replace with real API call in production)
 		setProfile(parsedProfile);
 		setCvConfirmed(true);
-		// Call backend to update candidate profile
-		fetch("/api/candidate/update", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				userId: 36, // TODO: Replace with real user id from session
-				profile: parsedProfile,
-			}),
-		});
 		setTimeout(() => setCurrentStep(1), 800); // Unlock Step 2 after short delay
 	}
 
@@ -73,7 +64,7 @@ export default function CandidateApplicationSubdashboard() {
 				/>
 				<div className="mt-8 p-6 bg-card rounded-xl shadow">
 					{currentStep === 0 && !cvConfirmed && (
-						<CVUpload onConfirm={handleCvConfirm} />
+						<CVUpload onConfirm={handleCvConfirm} userId={userId} />
 					)}
 					{currentStep === 0 && cvConfirmed && profile && (
 						<div className="text-green-600 font-semibold">
