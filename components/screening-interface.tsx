@@ -46,6 +46,10 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
   const [microphonePermission, setMicrophonePermission] = useState<'granted' | 'denied' | 'prompt' | 'unknown'>('unknown');
   const [autoRecordCountdown, setAutoRecordCountdown] = useState<number | null>(null);
 
+  // Photo capture for transparency
+  const [photosTaken, setPhotosTaken] = useState(0);
+  const [photoCaptureInterval, setPhotoCaptureInterval] = useState<NodeJS.Timeout | null>(null);
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const responseInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -98,7 +102,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
   useEffect(() => {
     console.log('[ScreeningInterface] Component mounted with props:', { requirementId, userId });
     checkMicrophonePermission();
+    // Initialize screening immediately since permissions are already granted from preview popup
     initializeScreening();
+    startPhotoCapture();
   }, [requirementId, userId]);
 
   useEffect(() => {
@@ -127,6 +133,8 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
+      // Cleanup photo capture
+      stopPhotoCapture();
     };
   }, []);
 
@@ -184,7 +192,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
         videoRef.current.onloadedmetadata = () => {
           console.log('[ScreeningInterface] 📐 Video metadata loaded (after state change)');
           console.log('[ScreeningInterface] 📐 Video dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
-          console.log('[ScreeningInterface] 🎬 Attempting to play video...');
+          console.log('[ScreeningInterface] �� Attempting to play video...');
           
           videoRef.current?.play().then(() => {
             console.log('[ScreeningInterface] ✅ Video playing successfully (after state change)');
@@ -683,35 +691,85 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
     setIsCameraOn(false);
   };
 
+  const startPhotoCapture = () => {
+    console.log('[ScreeningInterface] 📸 Starting photo capture schedule...');
+    
+    // Take first photo after 30 seconds
+    const firstPhotoTimeout = setTimeout(() => {
+      if (photosTaken === 0) {
+        capturePhoto();
+      }
+    }, 30000);
+    
+    // Take second photo after 2 minutes
+    const secondPhotoTimeout = setTimeout(() => {
+      if (photosTaken === 1) {
+        capturePhoto();
+      }
+    }, 120000);
+    
+    setPhotoCaptureInterval(firstPhotoTimeout);
+    
+    // Cleanup timeouts when component unmounts
+    return () => {
+      clearTimeout(firstPhotoTimeout);
+      clearTimeout(secondPhotoTimeout);
+    };
+  };
+
+  const stopPhotoCapture = () => {
+    if (photoCaptureInterval) {
+      clearTimeout(photoCaptureInterval);
+      setPhotoCaptureInterval(null);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && photosTaken < 2) {
+      try {
+        console.log('[ScreeningInterface] 📸 Capturing photo', photosTaken + 1);
+        
+        // Create canvas to capture video frame
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        if (ctx && videoRef.current) {
+          canvas.width = videoRef.current.videoWidth;
+          canvas.height = videoRef.current.videoHeight;
+          
+          // Draw video frame to canvas
+          ctx.drawImage(videoRef.current, 0, 0);
+          
+          // Convert to blob
+          canvas.toBlob((blob) => {
+            if (blob) {
+              // Create download link
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `interview_photo_${photosTaken + 1}_${Date.now()}.png`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              
+              console.log('[ScreeningInterface] ✅ Photo saved:', a.download);
+              setPhotosTaken(prev => prev + 1);
+            }
+          }, 'image/png');
+        }
+      } catch (error) {
+        console.error('[ScreeningInterface] ❌ Photo capture error:', error);
+      }
+    }
+  };
+
   if (!isConnected) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Connecting to screening session...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show microphone permission request if needed
-  if (microphonePermission === 'denied' || microphonePermission === 'prompt') {
-    return (
-      <div className="permission-screen">
-        <div className="permission-content">
-          <div className="permission-icon">
-            <MicOff className="w-8 h-8 text-white" />
-          </div>
-          <h2 className="permission-title">Microphone Permission Required</h2>
-          <p className="permission-description">
-            This interview requires microphone access for voice interaction. Please allow microphone permissions to continue.
-          </p>
-          <button
-            onClick={requestMicrophonePermission}
-            className="permission-button"
-          >
-            Allow Microphone Access
-          </button>
         </div>
       </div>
     );
@@ -744,6 +802,12 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
               </span>
             )}
           </span>
+          {photosTaken > 0 && (
+            <div className="flex items-center space-x-1 text-yellow-400">
+              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+              <span className="text-xs">📸 {photosTaken}/2 photos captured</span>
+            </div>
+          )}
         </div>
       </div>
 

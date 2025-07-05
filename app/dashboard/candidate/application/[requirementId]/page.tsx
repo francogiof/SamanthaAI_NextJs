@@ -1,8 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { StepProgressBar } from "@/components/step-progress-bar";
 import SidebarLayout, { SidebarItem } from "@/components/sidebar-layout";
-import { Briefcase, PlusCircle, Star, User, Video, ArrowRight } from "lucide-react";
+import { Briefcase, PlusCircle, Star, User, Video, ArrowRight, Mic } from "lucide-react";
 import CVUpload from "@/components/cv-upload";
 import ScreeningInterface from "@/components/screening-interface";
 
@@ -51,6 +51,15 @@ export default function CandidateApplicationSubdashboard() {
 	const [passesScreening, setPassesScreening] = useState<boolean | null>(null);
 	const userId = 36;
 
+	// Preview popup states
+	const [showPreviewPopup, setShowPreviewPopup] = useState(false);
+	const [previewCameraOn, setPreviewCameraOn] = useState(false);
+	const [previewMicrophoneOn, setPreviewMicrophoneOn] = useState(false);
+	const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
+	const [previewVideoRef, setPreviewVideoRef] = useState<HTMLVideoElement | null>(null);
+	const [previewAudioLevel, setPreviewAudioLevel] = useState(0);
+	const [previewPermissionsGranted, setPreviewPermissionsGranted] = useState(false);
+
 	// Get requirementId from URL params
 	const requirementId = typeof window !== 'undefined' ? window.location.pathname.split('/').pop() || '' : '';
 
@@ -62,8 +71,139 @@ export default function CandidateApplicationSubdashboard() {
 
 	function handleJoinMeeting() {
 		console.log('[ApplicationPage] Joining screening meeting for requirement:', requirementId);
-		setShowScreening(true);
+		setShowPreviewPopup(true);
 	}
+
+	const startPreviewCamera = async () => {
+		try {
+			console.log('[ApplicationPage] 🎥 Starting preview camera...');
+			const stream = await navigator.mediaDevices.getUserMedia({ 
+				video: true, 
+				audio: false 
+			});
+			console.log('[ApplicationPage] ✅ Preview camera stream obtained');
+			
+			setPreviewStream(stream);
+			setPreviewCameraOn(true);
+			
+			if (previewVideoRef) {
+				previewVideoRef.srcObject = stream;
+				previewVideoRef.play().then(() => {
+					console.log('[ApplicationPage] ✅ Preview video playing');
+				}).catch((error) => {
+					console.error('[ApplicationPage] ❌ Preview video play error:', error);
+				});
+			}
+		} catch (error) {
+			console.error('[ApplicationPage] ❌ Preview camera error:', error);
+			setPreviewCameraOn(false);
+		}
+	};
+
+	const startPreviewMicrophone = async () => {
+		try {
+			console.log('[ApplicationPage] 🎤 Starting preview microphone...');
+			const stream = await navigator.mediaDevices.getUserMedia({ 
+				video: false, 
+				audio: true 
+			});
+			console.log('[ApplicationPage] ✅ Preview microphone stream obtained');
+			
+			setPreviewMicrophoneOn(true);
+			
+			// Create audio context to monitor audio levels
+			const audioContext = new AudioContext();
+			const source = audioContext.createMediaStreamSource(stream);
+			const analyser = audioContext.createAnalyser();
+			analyser.fftSize = 256;
+			source.connect(analyser);
+			
+			const dataArray = new Uint8Array(analyser.frequencyBinCount);
+			
+			const updateAudioLevel = () => {
+				if (previewMicrophoneOn) {
+					analyser.getByteFrequencyData(dataArray);
+					const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+					setPreviewAudioLevel(average);
+					requestAnimationFrame(updateAudioLevel);
+				}
+			};
+			
+			updateAudioLevel();
+		} catch (error) {
+			console.error('[ApplicationPage] ❌ Preview microphone error:', error);
+			setPreviewMicrophoneOn(false);
+		}
+	};
+
+	const stopPreviewStreams = () => {
+		console.log('[ApplicationPage] 🛑 Stopping preview streams...');
+		if (previewStream) {
+			previewStream.getTracks().forEach(track => track.stop());
+			setPreviewStream(null);
+		}
+		setPreviewCameraOn(false);
+		setPreviewMicrophoneOn(false);
+		setPreviewAudioLevel(0);
+	};
+
+	const handlePreviewPermissions = async () => {
+		try {
+			console.log('[ApplicationPage] 🔐 Requesting preview permissions...');
+			
+			// Request both camera and microphone permissions
+			const stream = await navigator.mediaDevices.getUserMedia({ 
+				video: true, 
+				audio: true 
+			});
+			
+			console.log('[ApplicationPage] ✅ Preview permissions granted');
+			setPreviewPermissionsGranted(true);
+			
+			// Set up camera preview
+			setPreviewStream(stream);
+			setPreviewCameraOn(true);
+			setPreviewMicrophoneOn(true);
+			
+			if (previewVideoRef) {
+				previewVideoRef.srcObject = stream;
+				previewVideoRef.play().then(() => {
+					console.log('[ApplicationPage] ✅ Preview video playing');
+				});
+			}
+			
+			// Set up audio level monitoring
+			const audioContext = new AudioContext();
+			const source = audioContext.createMediaStreamSource(stream);
+			const analyser = audioContext.createAnalyser();
+			analyser.fftSize = 256;
+			source.connect(analyser);
+			
+			const dataArray = new Uint8Array(analyser.frequencyBinCount);
+			
+			const updateAudioLevel = () => {
+				if (previewMicrophoneOn) {
+					analyser.getByteFrequencyData(dataArray);
+					const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+					setPreviewAudioLevel(average);
+					requestAnimationFrame(updateAudioLevel);
+				}
+			};
+			
+			updateAudioLevel();
+			
+		} catch (error) {
+			console.error('[ApplicationPage] ❌ Preview permissions error:', error);
+			setPreviewPermissionsGranted(false);
+		}
+	};
+
+	const startInterview = () => {
+		console.log('[ApplicationPage] 🚀 Starting interview...');
+		stopPreviewStreams();
+		setShowPreviewPopup(false);
+		setShowScreening(true);
+	};
 
 	function handleScreeningComplete(score: number, passes: boolean) {
 		console.log('[ApplicationPage] Screening completed with score:', score, 'passes:', passes);
@@ -86,6 +226,143 @@ export default function CandidateApplicationSubdashboard() {
 				userId={userId}
 				onComplete={handleScreeningComplete}
 			/>
+		);
+	}
+
+	// Show preview popup before interview starts
+	if (showPreviewPopup) {
+		return (
+			<SidebarLayout basePath="/dashboard/candidate" items={navigationItems}>
+				<div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+					<div className="bg-white rounded-lg p-8 max-w-2xl w-full mx-4">
+						<div className="text-center mb-6">
+							<h2 className="text-2xl font-bold text-gray-900 mb-2">Interview Setup</h2>
+							<p className="text-gray-600">
+								Please enable your camera and microphone to continue with the interview. 
+								This interview will be recorded for transparency purposes.
+							</p>
+						</div>
+
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+							{/* Camera Preview */}
+							<div className="bg-gray-100 rounded-lg p-4">
+								<div className="flex items-center justify-between mb-3">
+									<h3 className="font-semibold text-gray-900">Camera</h3>
+									<div className={`w-3 h-3 rounded-full ${previewCameraOn ? 'bg-green-500' : 'bg-red-500'}`}></div>
+								</div>
+								
+								<div className="relative bg-gray-800 rounded-lg overflow-hidden h-48 mb-3">
+									{previewCameraOn ? (
+										<video
+											ref={(el) => setPreviewVideoRef(el)}
+											className="w-full h-full object-cover"
+											autoPlay
+											muted
+											playsInline
+										/>
+									) : (
+										<div className="flex items-center justify-center h-full">
+											<div className="text-center text-gray-400">
+												<Video className="w-12 h-12 mx-auto mb-2" />
+												<p className="text-sm">Camera preview</p>
+											</div>
+										</div>
+									)}
+								</div>
+								
+								<button
+									onClick={previewCameraOn ? () => {
+										stopPreviewStreams();
+										setPreviewCameraOn(false);
+									} : startPreviewCamera}
+									className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
+										previewCameraOn 
+											? 'bg-red-600 text-white hover:bg-red-700' 
+											: 'bg-blue-600 text-white hover:bg-blue-700'
+									}`}
+								>
+									{previewCameraOn ? 'Turn Off Camera' : 'Turn On Camera'}
+								</button>
+							</div>
+
+							{/* Microphone Preview */}
+							<div className="bg-gray-100 rounded-lg p-4">
+								<div className="flex items-center justify-between mb-3">
+									<h3 className="font-semibold text-gray-900">Microphone</h3>
+									<div className={`w-3 h-3 rounded-full ${previewMicrophoneOn ? 'bg-green-500' : 'bg-red-500'}`}></div>
+								</div>
+								
+								<div className="bg-gray-800 rounded-lg p-4 mb-3 h-48 flex items-center justify-center">
+									<div className="text-center">
+										<div className="relative mb-4">
+											<Mic className={`w-16 h-16 mx-auto ${previewMicrophoneOn ? 'text-green-500' : 'text-gray-400'}`} />
+											{previewMicrophoneOn && (
+												<div className="absolute inset-0 flex items-center justify-center">
+													<div 
+														className="w-20 h-20 rounded-full border-4 border-green-500 animate-pulse"
+														style={{
+															transform: `scale(${1 + (previewAudioLevel / 255) * 0.5})`
+														}}
+													></div>
+												</div>
+											)}
+										</div>
+										<p className="text-sm text-gray-400">
+											{previewMicrophoneOn ? 'Microphone active' : 'Microphone preview'}
+										</p>
+										{previewMicrophoneOn && (
+											<p className="text-xs text-green-600 mt-1">
+												Audio level: {Math.round((previewAudioLevel / 255) * 100)}%
+											</p>
+										)}
+									</div>
+								</div>
+								
+								<button
+									onClick={previewMicrophoneOn ? () => {
+										stopPreviewStreams();
+										setPreviewMicrophoneOn(false);
+									} : startPreviewMicrophone}
+									className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
+										previewMicrophoneOn 
+											? 'bg-red-600 text-white hover:bg-red-700' 
+											: 'bg-blue-600 text-white hover:bg-blue-700'
+									}`}
+								>
+									{previewMicrophoneOn ? 'Turn Off Microphone' : 'Turn On Microphone'}
+								</button>
+							</div>
+						</div>
+
+						<div className="flex flex-col sm:flex-row gap-3 justify-center">
+							<button
+								onClick={handlePreviewPermissions}
+								className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+							>
+								Enable Both Camera & Microphone
+							</button>
+							
+							<button
+								onClick={startInterview}
+								disabled={!previewCameraOn || !previewMicrophoneOn}
+								className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+									previewCameraOn && previewMicrophoneOn
+										? 'bg-blue-600 text-white hover:bg-blue-700'
+										: 'bg-gray-300 text-gray-500 cursor-not-allowed'
+								}`}
+							>
+								Start Interview
+							</button>
+						</div>
+
+						<div className="mt-4 text-center">
+							<p className="text-sm text-gray-500">
+								⚠️ Both camera and microphone must be enabled to start the interview.
+							</p>
+						</div>
+					</div>
+				</div>
+			</SidebarLayout>
 		);
 	}
 
