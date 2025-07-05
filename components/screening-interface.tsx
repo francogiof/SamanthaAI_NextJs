@@ -130,6 +130,79 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
     };
   }, []);
 
+  // Initialize video element when component mounts
+  useEffect(() => {
+    console.log('[ScreeningInterface] 🏗️ Component mounted, video ref:', !!videoRef.current);
+    if (videoRef.current) {
+      console.log('[ScreeningInterface] 🎬 Video element found, setting up event listeners');
+      console.log('[ScreeningInterface] 🎬 Video element initial state:', {
+        srcObject: videoRef.current.srcObject,
+        readyState: videoRef.current.readyState,
+        currentTime: videoRef.current.currentTime,
+        videoWidth: videoRef.current.videoWidth,
+        videoHeight: videoRef.current.videoHeight
+      });
+      
+      videoRef.current.onloadedmetadata = () => {
+        console.log('[ScreeningInterface] 📐 Video metadata loaded');
+        console.log('[ScreeningInterface] 📐 Video dimensions after metadata:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
+      };
+      videoRef.current.oncanplay = () => {
+        console.log('[ScreeningInterface] ✅ Video can play');
+        console.log('[ScreeningInterface] 🎬 Video readyState on canplay:', videoRef.current?.readyState);
+      };
+      videoRef.current.onerror = (error) => {
+        console.error('[ScreeningInterface] ❌ Video error:', error);
+        console.error('[ScreeningInterface] ❌ Video error details:', videoRef.current?.error);
+      };
+    }
+  }, []);
+
+  // Monitor camera state changes
+  useEffect(() => {
+    console.log('[ScreeningInterface] 🔄 Camera state changed:', isCameraOn);
+    console.log('[ScreeningInterface] 🎬 Video ref exists:', !!videoRef.current);
+    console.log('[ScreeningInterface] 📹 Stream ref exists:', !!streamRef.current);
+    
+    if (isCameraOn && videoRef.current && streamRef.current) {
+      console.log('[ScreeningInterface] ✅ Camera is on, video ref exists, stream exists');
+      console.log('[ScreeningInterface] 🎬 Video element current state:', {
+        srcObject: videoRef.current.srcObject,
+        readyState: videoRef.current.readyState,
+        currentTime: videoRef.current.currentTime,
+        videoWidth: videoRef.current.videoWidth,
+        videoHeight: videoRef.current.videoHeight,
+        paused: videoRef.current.paused,
+        ended: videoRef.current.ended
+      });
+      
+      // If video element exists but srcObject is not set, set it now
+      if (!videoRef.current.srcObject && streamRef.current) {
+        console.log('[ScreeningInterface] 🔧 Setting srcObject after state change...');
+        videoRef.current.srcObject = streamRef.current;
+        
+        videoRef.current.onloadedmetadata = () => {
+          console.log('[ScreeningInterface] 📐 Video metadata loaded (after state change)');
+          console.log('[ScreeningInterface] 📐 Video dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
+          console.log('[ScreeningInterface] 🎬 Attempting to play video...');
+          
+          videoRef.current?.play().then(() => {
+            console.log('[ScreeningInterface] ✅ Video playing successfully (after state change)');
+          }).catch((error) => {
+            console.error('[ScreeningInterface] ❌ Error playing video (after state change):', error);
+          });
+        };
+      }
+    }
+  }, [isCameraOn]);
+
+  // Monitor video rendering
+  useEffect(() => {
+    console.log('[ScreeningInterface] 🎨 Rendering decision - isCameraOn:', isCameraOn);
+    console.log('[ScreeningInterface] 🎨 Should show video:', isCameraOn);
+    console.log('[ScreeningInterface] 🎨 Video ref available:', !!videoRef.current);
+  }, [isCameraOn]);
+
   const checkMicrophonePermission = async () => {
     try {
       console.log('[ScreeningInterface] Checking microphone permission...');
@@ -465,15 +538,20 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
   };
 
   const toggleVideo = () => {
-    console.log('[ScreeningInterface] Toggling video:', !isVideoOn);
+    console.log('[ScreeningInterface] 📺 Toggling video display. Current state:', isVideoOn);
     setIsVideoOn(!isVideoOn);
   };
 
   const toggleCamera = async () => {
-    console.log('[ScreeningInterface] Toggling camera:', !isCameraOn);
+    console.log('[ScreeningInterface] 🔄 Toggling camera. Current state:', isCameraOn);
+    console.log('[ScreeningInterface] 🔄 Video ref exists:', !!videoRef.current);
+    console.log('[ScreeningInterface] 🔄 Stream ref exists:', !!streamRef.current);
+    
     if (isCameraOn) {
+      console.log('[ScreeningInterface] 🛑 Stopping camera...');
       stopCamera();
     } else {
+      console.log('[ScreeningInterface] ▶️ Starting camera...');
       await startCamera();
     }
   };
@@ -513,22 +591,82 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
 
   const startCamera = async () => {
     try {
-      console.log('[ScreeningInterface] Starting camera...');
+      console.log('[ScreeningInterface] 🎥 Starting camera...');
+      console.log('[ScreeningInterface] 📱 Checking media devices support...');
+      console.log('[ScreeningInterface] 📱 navigator.mediaDevices exists:', !!navigator.mediaDevices);
+      console.log('[ScreeningInterface] 📱 getUserMedia exists:', !!navigator.mediaDevices?.getUserMedia);
+      
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: true, 
         audio: false 
       });
+      console.log('[ScreeningInterface] ✅ Camera stream obtained:', stream);
+      console.log('[ScreeningInterface] 📹 Stream tracks:', stream.getTracks());
+      console.log('[ScreeningInterface] 📹 Video tracks:', stream.getVideoTracks());
+      console.log('[ScreeningInterface] 📹 Track settings:', stream.getVideoTracks()[0]?.getSettings());
+      
       streamRef.current = stream;
+      console.log('[ScreeningInterface] 💾 Stream saved to ref');
       
       if (videoRef.current) {
+        console.log('[ScreeningInterface] 🎬 Video element found, setting up...');
+        console.log('[ScreeningInterface] 🎬 Video element current srcObject:', videoRef.current.srcObject);
+        
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        console.log('[ScreeningInterface] ✅ Video srcObject set');
+        console.log('[ScreeningInterface] 🎬 Video element new srcObject:', videoRef.current.srcObject);
+        
+        // Wait for video to be ready
+        videoRef.current.onloadedmetadata = () => {
+          console.log('[ScreeningInterface] 📐 Video metadata loaded');
+          console.log('[ScreeningInterface] 📐 Video dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
+          console.log('[ScreeningInterface] 🎬 Attempting to play video...');
+          
+          videoRef.current?.play().then(() => {
+            console.log('[ScreeningInterface] ✅ Video playing successfully');
+            console.log('[ScreeningInterface] 🎬 Video currentTime:', videoRef.current?.currentTime);
+            console.log('[ScreeningInterface] 🎬 Video readyState:', videoRef.current?.readyState);
+          }).catch((error) => {
+            console.error('[ScreeningInterface] ❌ Error playing video:', error);
+          });
+        };
+        
+        videoRef.current.onerror = (error) => {
+          console.error('[ScreeningInterface] ❌ Video error:', error);
+          console.error('[ScreeningInterface] ❌ Video error details:', videoRef.current?.error);
+        };
+        
+        videoRef.current.oncanplay = () => {
+          console.log('[ScreeningInterface] ✅ Video can play');
+          console.log('[ScreeningInterface] 🎬 Video readyState on canplay:', videoRef.current?.readyState);
+        };
+
+        videoRef.current.onplay = () => {
+          console.log('[ScreeningInterface] 🎬 Video play event fired');
+        };
+
+        videoRef.current.onloadeddata = () => {
+          console.log('[ScreeningInterface] 📊 Video data loaded');
+        };
+
+        videoRef.current.onstalled = () => {
+          console.log('[ScreeningInterface] ⚠️ Video stalled');
+        };
+
+        videoRef.current.onwaiting = () => {
+          console.log('[ScreeningInterface] ⏳ Video waiting for data');
+        };
+        
+      } else {
+        console.error('[ScreeningInterface] ❌ Video ref is still null - this should not happen');
       }
       
       setIsCameraOn(true);
-      console.log('[ScreeningInterface] Camera started successfully');
+      console.log('[ScreeningInterface] ✅ Camera state set to true');
     } catch (error) {
-      console.error('[ScreeningInterface] Error starting camera:', error);
+      console.error('[ScreeningInterface] ❌ Error starting camera:', error);
+      console.error('[ScreeningInterface] ❌ Error name:', error instanceof Error ? error.name : 'Unknown');
+      console.error('[ScreeningInterface] ❌ Error message:', error instanceof Error ? error.message : 'Unknown error');
       setIsCameraOn(false);
     }
   };
@@ -636,15 +774,20 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
 
             {/* Candidate Video */}
             <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative overflow-hidden candidate-video-container">
-              {isCameraOn ? (
-                <video
-                  ref={videoRef}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  autoPlay
-                  muted
-                  playsInline
-                />
-              ) : (
+              {/* Always render video element but control visibility */}
+              <video
+                ref={videoRef}
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+                  isCameraOn ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
+                autoPlay
+                muted
+                playsInline
+                style={{ display: isCameraOn ? 'block' : 'none' }}
+              />
+              
+              {/* Show avatar when camera is off */}
+              {!isCameraOn && (
                 <>
                   <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 transition-all duration-300 ${
                     isListening ? 'avatar-listening' : 
@@ -816,16 +959,6 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
             title={isMuted ? 'Unmute' : 'Mute'}
           >
             {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-          </button>
-          
-          <button
-            onClick={toggleVideo}
-            className={`p-3 rounded-full transition-all duration-200 ${
-              !isVideoOn ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'
-            }`}
-            title={!isVideoOn ? 'Show Video' : 'Hide Video'}
-          >
-            {!isVideoOn ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
           </button>
           
           <button
