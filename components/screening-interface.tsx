@@ -27,6 +27,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
+  const [isCameraOn, setIsCameraOn] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [messages, setMessages] = useState<Message[]>([]);
   const [screeningContext, setScreeningContext] = useState<any>(null);
@@ -48,8 +49,10 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
   const chatEndRef = useRef<HTMLDivElement>(null);
   const responseInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
   const recognitionRef = useRef<any>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   // Agent slides for presentation
   const agentSlides: AgentSlide[] = [
@@ -120,6 +123,10 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
+      // Cleanup camera stream
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
     };
   }, []);
 
@@ -162,6 +169,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
   const startSpeechRecognition = () => {
     if (microphonePermission !== 'granted') {
       console.log('[ScreeningInterface] Microphone permission not granted, cannot start speech recognition');
+      addAgentMessage("Speech recognition is not supported in your browser. Please type your responses.");
       return;
     }
 
@@ -461,9 +469,36 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
     setIsVideoOn(!isVideoOn);
   };
 
+  const toggleCamera = async () => {
+    console.log('[ScreeningInterface] Toggling camera:', !isCameraOn);
+    if (isCameraOn) {
+      stopCamera();
+    } else {
+      await startCamera();
+    }
+  };
+
   const toggleAudio = () => {
     console.log('[ScreeningInterface] Toggling audio:', !audioEnabled);
     setAudioEnabled(!audioEnabled);
+  };
+
+  const endCall = () => {
+    console.log('[ScreeningInterface] Ending call...');
+    // Stop camera if active
+    if (isCameraOn) {
+      stopCamera();
+    }
+    // Stop speech recognition if active
+    if (isListening) {
+      stopSpeechRecognition();
+    }
+    // Complete screening if not already done
+    if (!screeningComplete) {
+      completeScreening();
+    }
+    // Call the onComplete callback
+    onComplete(screeningScore || 0, passesScreening || false);
   };
 
   const nextSlide = () => {
@@ -474,6 +509,40 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
   const prevSlide = () => {
     console.log('[ScreeningInterface] Moving to previous slide:', currentSlide - 1);
     setCurrentSlide(prev => Math.max(prev - 1, 0));
+  };
+
+  const startCamera = async () => {
+    try {
+      console.log('[ScreeningInterface] Starting camera...');
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: true, 
+        audio: false 
+      });
+      streamRef.current = stream;
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+      
+      setIsCameraOn(true);
+      console.log('[ScreeningInterface] Camera started successfully');
+    } catch (error) {
+      console.error('[ScreeningInterface] Error starting camera:', error);
+      setIsCameraOn(false);
+    }
+  };
+
+  const stopCamera = () => {
+    console.log('[ScreeningInterface] Stopping camera...');
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraOn(false);
   };
 
   if (!isConnected) {
@@ -530,34 +599,20 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
         </div>
         
         <div className="flex items-center space-x-2">
-          <button
-            onClick={toggleAudio}
-            className={`p-2 rounded-full ${!audioEnabled ? 'bg-red-600' : 'bg-gray-700'} hover:bg-opacity-80`}
-          >
-            {!audioEnabled ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-          </button>
-          <button
-            onClick={toggleMute}
-            className={`p-2 rounded-full ${isMuted ? 'bg-red-600' : 'bg-gray-700'} hover:bg-opacity-80`}
-          >
-            {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-          </button>
-          <button
-            onClick={toggleVideo}
-            className={`p-2 rounded-full ${!isVideoOn ? 'bg-red-600' : 'bg-gray-700'} hover:bg-opacity-80`}
-          >
-            {!isVideoOn ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-          </button>
-          <button className="p-2 rounded-full bg-red-600 hover:bg-opacity-80">
-            <Phone className="w-5 h-5" />
-          </button>
+          <span className="text-sm text-gray-300">
+            {screeningComplete && (
+              <span className="font-semibold">
+                Score: {screeningScore}/100
+              </span>
+            )}
+          </span>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex">
         {/* Video Area */}
-        <div className="flex-1 p-4">
+        <div className="flex-1 p-4 video-area">
           <div className="grid grid-cols-2 gap-4 h-full">
             {/* Agent Video */}
             <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative">
@@ -580,31 +635,43 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
             </div>
 
             {/* Candidate Video */}
-            <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative">
-              <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 transition-all duration-300 ${
-                isListening ? 'avatar-listening' : 
-                isVideoOn ? 'bg-green-600' : 'bg-gray-600'
-              }`}>
-                <User className="w-12 h-12 text-white" />
-              </div>
-              {isListening && (
-                <div className="audio-indicator">
-                  <div className="audio-dots">
-                    <div className="audio-dot"></div>
-                    <div className="audio-dot"></div>
-                    <div className="audio-dot"></div>
+            <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative overflow-hidden candidate-video-container">
+              {isCameraOn ? (
+                <video
+                  ref={videoRef}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  autoPlay
+                  muted
+                  playsInline
+                />
+              ) : (
+                <>
+                  <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 transition-all duration-300 ${
+                    isListening ? 'avatar-listening' : 
+                    isVideoOn ? 'bg-green-600' : 'bg-gray-600'
+                  }`}>
+                    <User className="w-12 h-12 text-white" />
                   </div>
-                </div>
-              )}
-              <h3 className="text-white font-semibold">You</h3>
-              <p className="text-gray-400 text-sm">
-                {isVideoOn ? 'Video On' : 'Video Off'} • {isMuted ? 'Muted' : 'Unmuted'}
-              </p>
-              {autoRecordCountdown !== null && !isListening && (
-                <div className="countdown-indicator">
-                  <div className="countdown-dot"></div>
-                  <span className="text-yellow-400 text-sm">Listening in {autoRecordCountdown}s...</span>
-                </div>
+                  {isListening && (
+                    <div className="audio-indicator">
+                      <div className="audio-dots">
+                        <div className="audio-dot"></div>
+                        <div className="audio-dot"></div>
+                        <div className="audio-dot"></div>
+                      </div>
+                    </div>
+                  )}
+                  <h3 className="text-white font-semibold">You</h3>
+                  <p className="text-gray-400 text-sm">
+                    {isVideoOn ? 'Video On' : 'Video Off'} • {isMuted ? 'Muted' : 'Unmuted'}
+                  </p>
+                  {autoRecordCountdown !== null && !isListening && (
+                    <div className="countdown-indicator">
+                      <div className="countdown-dot"></div>
+                      <span className="text-yellow-400 text-sm">Listening in {autoRecordCountdown}s...</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -613,7 +680,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
         {/* Chat Area */}
         <div className="w-96 bg-gray-800 flex flex-col">
           {/* Chat Header */}
-          <div className="p-4 border-b border-gray-700">
+          <div className="p-4 border-b border-gray-700 flex-shrink-0">
             <h3 className="text-white font-semibold flex items-center">
               <MessageCircle className="w-5 h-5 mr-2" />
               Interview Chat
@@ -630,7 +697,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 max-h-96">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -643,7 +710,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
                       : 'bg-gray-700 text-white'
                   }`}
                 >
-                  <p className="text-sm">{message.content}</p>
+                  <p className="text-sm break-words">{message.content}</p>
                   <p className="text-xs opacity-70 mt-1">
                     {message.timestamp.toLocaleTimeString()}
                   </p>
@@ -667,7 +734,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
           </div>
 
           {/* Input Area */}
-          <div className="p-4 border-t border-gray-700">
+          <div className="p-4 border-t border-gray-700 flex-shrink-0">
             <div className="flex space-x-2">
               <button
                 onClick={isListening ? stopSpeechRecognition : startSpeechRecognition}
@@ -726,27 +793,59 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
             Next
           </button>
         </div>
+      </div>
 
-        <div className="flex items-center space-x-4">
-          {screeningComplete && (
-            <div className="text-white">
-              <span className="font-semibold">
-                Score: {screeningScore}/100
-              </span>
-              <span className={`ml-2 px-2 py-1 rounded text-xs ${
-                passesScreening ? 'bg-green-600' : 'bg-red-600'
-              }`}>
-                {passesScreening ? 'PASSED' : 'REVIEW'}
-              </span>
-            </div>
-          )}
+      {/* Google Meet-style Floating Controls */}
+      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
+        <div className="bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-full px-6 py-3 flex items-center space-x-4 shadow-2xl">
+          <button
+            onClick={toggleAudio}
+            className={`p-3 rounded-full transition-all duration-200 ${
+              !audioEnabled ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'
+            }`}
+            title={!audioEnabled ? 'Enable Audio' : 'Disable Audio'}
+          >
+            {!audioEnabled ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+          </button>
           
           <button
-            onClick={() => onComplete(screeningScore || 0, passesScreening || false)}
-            disabled={!screeningComplete}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            onClick={toggleMute}
+            className={`p-3 rounded-full transition-all duration-200 ${
+              isMuted ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'
+            }`}
+            title={isMuted ? 'Unmute' : 'Mute'}
           >
-            Continue
+            {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+          </button>
+          
+          <button
+            onClick={toggleVideo}
+            className={`p-3 rounded-full transition-all duration-200 ${
+              !isVideoOn ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'
+            }`}
+            title={!isVideoOn ? 'Show Video' : 'Hide Video'}
+          >
+            {!isVideoOn ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+          </button>
+          
+          <button
+            onClick={toggleCamera}
+            className={`p-3 rounded-full transition-all duration-200 ${
+              !isCameraOn ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'
+            }`}
+            title={!isCameraOn ? 'Turn On Camera' : 'Turn Off Camera'}
+          >
+            {!isCameraOn ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+          </button>
+          
+          <div className="w-px h-8 bg-gray-600"></div>
+          
+          <button 
+            onClick={endCall}
+            className="p-3 rounded-full bg-red-600 text-white hover:bg-red-700 transition-all duration-200"
+            title="End Call"
+          >
+            <Phone className="w-5 h-5" />
           </button>
         </div>
       </div>
