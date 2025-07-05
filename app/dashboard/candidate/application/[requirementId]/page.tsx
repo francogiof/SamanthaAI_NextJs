@@ -105,8 +105,8 @@ export default function CandidateApplicationSubdashboard() {
 					)}
 					{currentStep === 0 && cvConfirmed && profile && (
 						<div className="flex flex-col gap-4">
-							<div className="text-green-600 font-semibold">
-								CV uploaded and profile confirmed! Proceeding to next step...
+						<div className="text-green-600 font-semibold">
+							CV uploaded and profile confirmed! Proceeding to next step...
 							</div>
 							<div className="flex flex-row gap-2 items-center justify-between mt-4">
 								<button

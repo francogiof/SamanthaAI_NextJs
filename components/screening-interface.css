@@ -1,0 +1,153 @@
+/* Audio activity indicators for screening interface */
+
+.avatar-talking {
+  background: #4caf50 !important;
+  box-shadow: 0 0 15px 5px rgba(76, 175, 80, 0.6) !important;
+  animation: pulse 1s infinite !important;
+}
+
+.avatar-listening {
+  background: #4caf50 !important;
+  box-shadow: 0 0 15px 5px rgba(76, 175, 80, 0.6) !important;
+  animation: pulse 1s infinite !important;
+}
+
+@keyframes pulse {
+  0% { 
+    box-shadow: 0 0 0px rgba(76, 175, 80, 0.6); 
+  }
+  50% { 
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.9); 
+  }
+  100% { 
+    box-shadow: 0 0 0px rgba(76, 175, 80, 0.6); 
+  }
+}
+
+.audio-indicator {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.audio-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.audio-dot {
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.audio-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.audio-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+.audio-dot:nth-child(3) {
+  animation-delay: 0s;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+.countdown-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.countdown-dot {
+  width: 12px;
+  height: 12px;
+  background: #f59e0b;
+  border-radius: 50%;
+  animation: pulse-countdown 1s infinite;
+}
+
+@keyframes pulse-countdown {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.1);
+  }
+}
+
+/* Microphone permission screen */
+.permission-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  background: #f8fafc;
+}
+
+.permission-content {
+  text-align: center;
+  max-width: 400px;
+  padding: 2rem;
+}
+
+.permission-icon {
+  width: 64px;
+  height: 64px;
+  background: #dc2626;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.permission-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.permission-description {
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.permission-button {
+  background: #2563eb;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.permission-button:hover {
+  background: #1d4ed8;
+}
+
+.permission-button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+} 

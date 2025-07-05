@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { User, MessageCircle, Share2, Mic, MicOff, Video, VideoOff, Phone, Volume2, VolumeX } from 'lucide-react';
+import './screening-interface.css';
 
 interface ScreeningInterfaceProps {
   requirementId: string;
@@ -38,17 +39,17 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
   const [passesScreening, setPassesScreening] = useState<boolean | null>(null);
 
   // Speech functionality states
-  const [isRecording, setIsRecording] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(true);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const [microphonePermission, setMicrophonePermission] = useState<'granted' | 'denied' | 'prompt' | 'unknown'>('unknown');
   const [autoRecordCountdown, setAutoRecordCountdown] = useState<number | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const responseInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Agent slides for presentation
   const agentSlides: AgentSlide[] = [
@@ -93,8 +94,8 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
 
   useEffect(() => {
     console.log('[ScreeningInterface] Component mounted with props:', { requirementId, userId });
+    checkMicrophonePermission();
     initializeScreening();
-    initializeSpeech();
   }, [requirementId, userId]);
 
   useEffect(() => {
@@ -116,88 +117,111 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
       if (countdownRef.current) {
         clearInterval(countdownRef.current);
       }
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
     };
   }, []);
 
-  const initializeSpeech = async () => {
+  const checkMicrophonePermission = async () => {
     try {
-      console.log('[ScreeningInterface] Initializing speech functionality...');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('[ScreeningInterface] Checking microphone permission...');
+      const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      setMicrophonePermission(permission.state);
       
-      // Try different audio formats for better browser compatibility
-      let mimeType = 'audio/webm;codecs=opus';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'audio/webm';
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-          mimeType = 'audio/mp4';
-          if (!MediaRecorder.isTypeSupported(mimeType)) {
-            mimeType = 'audio/wav';
-          }
-        }
-      }
-      
-      console.log('[ScreeningInterface] Using audio format:', mimeType);
-      
-      const recorder = new MediaRecorder(stream, {
-        mimeType: mimeType
-      });
-      
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          setAudioChunks(prev => [...prev, event.data]);
-        }
+      permission.onchange = () => {
+        console.log('[ScreeningInterface] Microphone permission changed:', permission.state);
+        setMicrophonePermission(permission.state);
       };
-
-      recorder.onstop = async () => {
-        console.log('[ScreeningInterface] Recording stopped, processing audio...');
-        const audioBlob = new Blob(audioChunks, { type: mimeType });
-        console.log('[ScreeningInterface] Audio blob size:', audioBlob.size, 'type:', audioBlob.type);
-        await processAudioToText(audioBlob);
-        setAudioChunks([]);
-      };
-
-      setMediaRecorder(recorder);
-      console.log('[ScreeningInterface] Speech functionality initialized');
+      
+      console.log('[ScreeningInterface] Initial microphone permission:', permission.state);
     } catch (error) {
-      console.error('[ScreeningInterface] Error initializing speech:', error);
+      console.error('[ScreeningInterface] Error checking microphone permission:', error);
+      setMicrophonePermission('unknown');
     }
   };
 
-  const processAudioToText = async (audioBlob: Blob) => {
+  const requestMicrophonePermission = async () => {
     try {
-      console.log('[ScreeningInterface] Converting speech to text...');
-      const formData = new FormData();
+      console.log('[ScreeningInterface] Requesting microphone permission...');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setMicrophonePermission('granted');
+      console.log('[ScreeningInterface] Microphone permission granted');
       
-      // Use the actual blob type for the filename
-      const fileExtension = audioBlob.type.split('/')[1] || 'webm';
-      formData.append('audio', audioBlob, `recording.${fileExtension}`);
-
-      const response = await fetch('/api/speech/stt', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
+      // Stop the stream immediately - we just needed permission
+      stream.getTracks().forEach(track => track.stop());
       
-      if (data.success && data.text) {
-        console.log('[ScreeningInterface] Speech transcribed:', data.text);
-        setCandidateResponse(data.text);
-        // Auto-send the transcribed text
-        handleSendMessage(data.text);
-      } else {
-        console.error('[ScreeningInterface] STT failed:', data.error);
-        // Show error to user
-        addAgentMessage("I didn't catch that. Could you please repeat your answer?");
-      }
+      return true;
     } catch (error) {
-      console.error('[ScreeningInterface] Error processing audio:', error);
-      // Show error to user
-      addAgentMessage("I'm having trouble hearing you. Could you please try again?");
+      console.error('[ScreeningInterface] Microphone permission denied:', error);
+      setMicrophonePermission('denied');
+      return false;
+    }
+  };
+
+  const startSpeechRecognition = () => {
+    if (microphonePermission !== 'granted') {
+      console.log('[ScreeningInterface] Microphone permission not granted, cannot start speech recognition');
+      return;
+    }
+
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    if (!SpeechRecognition) {
+      console.error('[ScreeningInterface] Speech Recognition not supported in this browser');
+      addAgentMessage("Speech recognition is not supported in your browser. Please type your responses.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      console.log('[ScreeningInterface] Speech recognition started');
+      setIsListening(true);
+    };
+
+    recognition.onend = () => {
+      console.log('[ScreeningInterface] Speech recognition ended');
+      setIsListening(false);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('[ScreeningInterface] Speech recognition error:', event.error);
+      setIsListening(false);
+      
+      if (event.error === 'not-allowed') {
+        setMicrophonePermission('denied');
+        addAgentMessage("Microphone access was denied. Please enable microphone permissions and try again.");
+      }
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      console.log('[ScreeningInterface] Speech transcribed:', transcript);
+      setCandidateResponse(transcript);
+      handleSendMessage(transcript);
+    };
+
+    try {
+      recognition.start();
+      setIsListening(true);
+    } catch (error) {
+      console.error('[ScreeningInterface] Error starting speech recognition:', error);
+    }
+  };
+
+  const stopSpeechRecognition = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
     }
   };
 
   const startAutoRecordingCountdown = () => {
-    if (screeningComplete || isRecording) return;
+    if (screeningComplete || isListening || microphonePermission !== 'granted') return;
     
     console.log('[ScreeningInterface] Starting auto-recording countdown...');
     setAutoRecordCountdown(3);
@@ -210,9 +234,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
             countdownRef.current = null;
           }
           setAutoRecordCountdown(null);
-          if (!screeningComplete && !isRecording) {
-            console.log('[ScreeningInterface] Auto-starting recording after countdown...');
-            startRecording();
+          if (!screeningComplete && !isListening && microphonePermission === 'granted') {
+            console.log('[ScreeningInterface] Auto-starting speech recognition after countdown...');
+            startSpeechRecognition();
           }
           return null;
         }
@@ -225,7 +249,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
     if (!audioEnabled) {
       // If audio is disabled, still start countdown
       setTimeout(() => {
-        if (!screeningComplete && !isRecording) {
+        if (!screeningComplete && !isListening && microphonePermission === 'granted') {
           startAutoRecordingCountdown();
         }
       }, 1000);
@@ -267,23 +291,6 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
       setIsPlayingAudio(false);
       // Start countdown even if TTS fails
       startAutoRecordingCountdown();
-    }
-  };
-
-  const startRecording = () => {
-    if (mediaRecorder && mediaRecorder.state === 'inactive') {
-      console.log('[ScreeningInterface] Starting recording...');
-      setIsRecording(true);
-      setAudioChunks([]);
-      mediaRecorder.start();
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      console.log('[ScreeningInterface] Stopping recording...');
-      setIsRecording(false);
-      mediaRecorder.stop();
     }
   };
 
@@ -480,6 +487,29 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
     );
   }
 
+  // Show microphone permission request if needed
+  if (microphonePermission === 'denied' || microphonePermission === 'prompt') {
+    return (
+      <div className="permission-screen">
+        <div className="permission-content">
+          <div className="permission-icon">
+            <MicOff className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="permission-title">Microphone Permission Required</h2>
+          <p className="permission-description">
+            This interview requires microphone access for voice interaction. Please allow microphone permissions to continue.
+          </p>
+          <button
+            onClick={requestMicrophonePermission}
+            className="permission-button"
+          >
+            Allow Microphone Access
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen bg-gray-900 flex flex-col">
       {/* Hidden audio element for TTS */}
@@ -530,42 +560,50 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
         <div className="flex-1 p-4">
           <div className="grid grid-cols-2 gap-4 h-full">
             {/* Agent Video */}
-            <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center">
-              <div className="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center mb-4">
+            <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative">
+              <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 transition-all duration-300 ${
+                isPlayingAudio ? 'avatar-talking' : 'bg-blue-600'
+              }`}>
                 <User className="w-12 h-12 text-white" />
               </div>
-              <h3 className="text-white font-semibold">Sarah (Interviewer)</h3>
-              <p className="text-gray-400 text-sm">Screening Agent</p>
               {isPlayingAudio && (
-                <div className="mt-2 flex space-x-1">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="audio-indicator">
+                  <div className="audio-dots">
+                    <div className="audio-dot"></div>
+                    <div className="audio-dot"></div>
+                    <div className="audio-dot"></div>
+                  </div>
                 </div>
               )}
+              <h3 className="text-white font-semibold">Sarah (Interviewer)</h3>
+              <p className="text-gray-400 text-sm">Screening Agent</p>
             </div>
 
             {/* Candidate Video */}
-            <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center">
-              <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 ${
+            <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative">
+              <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 transition-all duration-300 ${
+                isListening ? 'avatar-listening' : 
                 isVideoOn ? 'bg-green-600' : 'bg-gray-600'
               }`}>
                 <User className="w-12 h-12 text-white" />
               </div>
+              {isListening && (
+                <div className="audio-indicator">
+                  <div className="audio-dots">
+                    <div className="audio-dot"></div>
+                    <div className="audio-dot"></div>
+                    <div className="audio-dot"></div>
+                  </div>
+                </div>
+              )}
               <h3 className="text-white font-semibold">You</h3>
               <p className="text-gray-400 text-sm">
                 {isVideoOn ? 'Video On' : 'Video Off'} • {isMuted ? 'Muted' : 'Unmuted'}
               </p>
-              {isRecording && (
-                <div className="mt-2 flex items-center gap-2">
-                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                  <span className="text-red-400 text-sm">Recording...</span>
-                </div>
-              )}
-              {autoRecordCountdown !== null && !isRecording && (
-                <div className="mt-2 flex items-center gap-2">
-                  <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
-                  <span className="text-yellow-400 text-sm">Recording in {autoRecordCountdown}s...</span>
+              {autoRecordCountdown !== null && !isListening && (
+                <div className="countdown-indicator">
+                  <div className="countdown-dot"></div>
+                  <span className="text-yellow-400 text-sm">Listening in {autoRecordCountdown}s...</span>
                 </div>
               )}
             </div>
@@ -632,15 +670,15 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
           <div className="p-4 border-t border-gray-700">
             <div className="flex space-x-2">
               <button
-                onClick={isRecording ? stopRecording : startRecording}
-                disabled={isMuted || screeningComplete}
+                onClick={isListening ? stopSpeechRecognition : startSpeechRecognition}
+                disabled={isMuted || screeningComplete || microphonePermission !== 'granted'}
                 className={`p-2 rounded-lg ${
-                  isRecording 
+                  isListening 
                     ? 'bg-red-600 text-white' 
                     : 'bg-gray-700 text-white hover:bg-gray-600'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               </button>
               <input
                 ref={responseInputRef}
@@ -661,7 +699,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
               </button>
             </div>
             <p className="text-xs text-gray-400 mt-2">
-              {isRecording ? 'Recording... Click microphone to stop' : 'Click microphone to record or type your response'}
+              {isListening ? 'Listening... Click microphone to stop' : 'Click microphone to speak or type your response'}
             </p>
           </div>
         </div>
