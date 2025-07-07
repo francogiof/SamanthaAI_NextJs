@@ -8,6 +8,9 @@ interface ScreeningInterfaceProps {
   requirementId: string;
   userId: number;
   onComplete: (score: number, passes: boolean) => void;
+  previewStream?: MediaStream | null;
+  previewCameraOn?: boolean;
+  previewMicrophoneOn?: boolean;
 }
 
 interface Message {
@@ -23,7 +26,7 @@ interface AgentSlide {
   content: any;
 }
 
-export default function ScreeningInterface({ requirementId, userId, onComplete }: ScreeningInterfaceProps) {
+export default function ScreeningInterface({ requirementId, userId, onComplete, previewStream, previewCameraOn, previewMicrophoneOn }: ScreeningInterfaceProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
@@ -101,11 +104,33 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
 
   useEffect(() => {
     console.log('[ScreeningInterface] Component mounted with props:', { requirementId, userId });
-    checkMicrophonePermission();
-    // Initialize screening immediately since permissions are already granted from preview popup
+    console.log('[ScreeningInterface] Preview permissions:', { previewCameraOn, previewMicrophoneOn, previewStream });
+    
+    // If preview permissions are granted, use them
+    if (previewStream && previewCameraOn && previewMicrophoneOn) {
+      console.log('[ScreeningInterface] Using preview streams and permissions');
+      setMicrophonePermission('granted');
+      setIsCameraOn(true);
+      streamRef.current = previewStream;
+      
+      // Set up video element with existing stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = previewStream;
+        videoRef.current.play().then(() => {
+          console.log('[ScreeningInterface] ✅ Video playing with preview stream');
+        }).catch((error) => {
+          console.error('[ScreeningInterface] ❌ Error playing preview video:', error);
+        });
+      }
+    } else {
+      console.log('[ScreeningInterface] No preview permissions, checking microphone permission');
+      checkMicrophonePermission();
+    }
+    
+    // Initialize screening and photo capture
     initializeScreening();
     startPhotoCapture();
-  }, [requirementId, userId]);
+  }, [requirementId, userId, previewStream, previewCameraOn, previewMicrophoneOn]);
 
   useEffect(() => {
     console.log('[ScreeningInterface] Screening progress updated:', screeningProgress);
@@ -129,14 +154,27 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
-      // Cleanup camera stream
-      if (streamRef.current) {
+      // Cleanup camera stream (only if it's not the preview stream)
+      if (streamRef.current && streamRef.current !== previewStream) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
       // Cleanup photo capture
       stopPhotoCapture();
     };
-  }, []);
+  }, [previewStream]);
+
+  // Handle video element setup when preview stream is available
+  useEffect(() => {
+    if (previewStream && previewCameraOn && videoRef.current) {
+      console.log('[ScreeningInterface] Setting up video element with preview stream');
+      videoRef.current.srcObject = previewStream;
+      videoRef.current.play().then(() => {
+        console.log('[ScreeningInterface] ✅ Video playing with preview stream');
+      }).catch((error) => {
+        console.error('[ScreeningInterface] ❌ Error playing preview video:', error);
+      });
+    }
+  }, [previewStream, previewCameraOn, videoRef.current]);
 
   // Initialize video element when component mounts
   useEffect(() => {
@@ -192,7 +230,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete }
         videoRef.current.onloadedmetadata = () => {
           console.log('[ScreeningInterface] 📐 Video metadata loaded (after state change)');
           console.log('[ScreeningInterface] 📐 Video dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
-          console.log('[ScreeningInterface] �� Attempting to play video...');
+          console.log('[ScreeningInterface] 🎬 Attempting to play video...');
           
           videoRef.current?.play().then(() => {
             console.log('[ScreeningInterface] ✅ Video playing successfully (after state change)');

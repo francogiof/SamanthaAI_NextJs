@@ -200,7 +200,7 @@ export default function CandidateApplicationSubdashboard() {
 
 	const startInterview = () => {
 		console.log('[ApplicationPage] 🚀 Starting interview...');
-		stopPreviewStreams();
+		// Don't stop the streams - pass them to the screening interface
 		setShowPreviewPopup(false);
 		setShowScreening(true);
 	};
@@ -211,6 +211,8 @@ export default function CandidateApplicationSubdashboard() {
 		setPassesScreening(passes);
 		setScreeningComplete(true);
 		setShowScreening(false);
+		// Clean up preview streams after interview is complete
+		stopPreviewStreams();
 	}
 
 	function handleNextStage() {
@@ -225,6 +227,9 @@ export default function CandidateApplicationSubdashboard() {
 				requirementId={requirementId}
 				userId={userId}
 				onComplete={handleScreeningComplete}
+				previewStream={previewStream}
+				previewCameraOn={previewCameraOn}
+				previewMicrophoneOn={previewMicrophoneOn}
 			/>
 		);
 	}
