@@ -1,0 +1,6 @@
+answer_id,candidate_id,technical_question_id,user_answer,score,feedback
+1,1,1,"Supervised learning uses labeled training data to teach the model to predict outcomes. Unsupervised learning finds hidden patterns in data without labels, like clustering or dimensionality reduction.",92,"Clear and accurate explanation with examples."
+2,1,2,"I use dropout layers, L2 regularization, early stopping, and data augmentation. I also ensure the training set is large enough and monitor validation loss to detect overfitting early.",88,"Good technical knowledge, could mention more techniques."
+3,1,3,"I build a preprocessing pipeline, serialize the model, create a REST API, containerize with Docker, set up monitoring with Prometheus, and use CI/CD for automated deployment.",90,"Comprehensive deployment knowledge."
+4,1,4,"Bias is how much the model's assumptions differ from reality, variance is how much predictions vary with different training data. We need to balance both to avoid underfitting or overfitting.",85,"Correct concept, could be more detailed."
+5,1,5,"I use SMOTE for synthetic minority oversampling, adjust class weights in the loss function, and sometimes use ensemble methods like Random Forest which handle imbalance well.",87,"Good practical approach to the problem." 

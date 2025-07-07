@@ -1,0 +1,6 @@
+answer_id,candidate_id,screening_question_id,user_answer,score,feedback
+1,1,1,"Yes, I have a valid work permit and am authorized to work in the US.",95,"Clear and affirmative response."
+2,1,2,"I'm looking for $120,000 to $140,000 annually, which aligns with the market rate for ML engineers with my experience.",88,"Reasonable salary expectation within range."
+3,1,3,"Yes, I can start within 2 weeks. I'm currently wrapping up my current project and can transition smoothly.",92,"Good availability and professional approach."
+4,1,4,"Yes, I'm comfortable with hybrid work and can be on-site in San Francisco 3 days per week.",90,"Flexible and willing to meet requirements."
+5,1,5,"Yes, I have deployed BERT models to production at HealthAI and maintained them for 2 years.",94,"Strong production experience with specific examples." 

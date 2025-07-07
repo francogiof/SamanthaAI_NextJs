@@ -1,0 +1,3 @@
+context_id,requirement_id,salary_range,contract_type,start_date,schedule,extra_notes,exclusion_criteria
+1,1,"$120,000 - $150,000","Full-time","2024-03-01","Mon-Fri, 9am-5pm PST, hybrid (3 days on-site)","Competitive benefits, stock options, professional development budget","No visa sponsorship, must be US-based"
+2,2,"$80,000 - $100,000","Contract-to-hire","2024-02-15","Mon-Fri, flexible hours, remote-first","6-month contract with potential for full-time conversion","Must be available for occasional travel to Austin" 

@@ -1,0 +1,8 @@
+technical_question_id,requirement_id,question,ideal_answer
+1,1,"Explain the difference between supervised and unsupervised learning.","Supervised learning uses labeled data to train models that can predict outcomes for new data. Unsupervised learning finds patterns in unlabeled data without predefined outputs."
+2,1,"How do you prevent overfitting in neural networks?","Use regularization techniques like L1/L2 regularization, dropout layers, early stopping, data augmentation, and ensure sufficient training data."
+3,1,"Describe the ML model deployment process.","Data preprocessing pipeline, model serialization, API development, containerization with Docker, CI/CD integration, monitoring, and A/B testing."
+4,1,"What is the bias-variance tradeoff?","Bias is the model's assumptions about the data, variance is sensitivity to training data. High bias leads to underfitting, high variance leads to overfitting. We need to balance both."
+5,1,"How do you handle imbalanced datasets?","Use techniques like SMOTE, class weights, undersampling majority class, oversampling minority class, or ensemble methods."
+6,2,"Explain cross-validation and why it's important.","Cross-validation splits data into multiple folds, trains on different combinations, and averages results to get a more reliable performance estimate."
+7,2,"What are the key metrics for evaluating classification models?","Accuracy, precision, recall, F1-score, ROC-AUC, and confusion matrix. Choose based on business requirements." 

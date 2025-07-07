@@ -1,3 +1,3 @@
-requirement_id,creator_user_id,creator_role,role_name,responsibilities,required_skills,experience_required_years
-1,2,team_leader,Machine Learning Engineer,"Develop ML models, collaborate with data team, deploy to production.",Python,TensorFlow,PyTorch,ML Ops,3
-2,36,candidate,ML Engineer (Simulated),"End-to-end ML project, data cleaning, model selection, reporting.",Python,scikit-learn,pandas,2
+requirement_id,creator_user_id,creator_role,role_name,responsibilities,required_skills,experience_required_years,company_id
+1,2,team_leader,Machine Learning Engineer,"Develop ML models, collaborate with data team, deploy to production.",Python,TensorFlow,PyTorch,ML Ops,3,1
+2,36,candidate,ML Engineer (Simulated),"End-to-end ML project, data cleaning, model selection, reporting.",Python,scikit-learn,pandas,2,2 

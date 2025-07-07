@@ -1,0 +1,5 @@
+status_id,candidate_id,requirement_id,current_step,status
+1,1,1,screening,in_progress
+2,1,2,behavioral,pending
+3,36,1,technical,in_progress
+4,36,2,cv_review,pending 

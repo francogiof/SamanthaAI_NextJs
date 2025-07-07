@@ -1,0 +1,9 @@
+screening_question_id,requirement_id,question,type
+1,1,"Are you legally authorized to work in the United States?","legal"
+2,1,"What is your expected salary range for this position?","salary"
+3,1,"Are you available to start within 2 weeks of receiving an offer?","availability"
+4,1,"Are you willing to work on-site in San Francisco at least 3 days per week?","availability"
+5,1,"Do you have experience with production ML model deployment?","experience"
+6,2,"Are you available for remote work with occasional travel?","availability"
+7,2,"What is your minimum salary requirement?","salary"
+8,2,"Can you commit to a 6-month contract with potential for full-time conversion?","availability" 
