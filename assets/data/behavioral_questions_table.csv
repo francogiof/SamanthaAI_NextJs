@@ -1,3 +1,8 @@
 behavioral_question_id,requirement_id,question,ideal_traits
 1,1,"Describe a time you resolved a team conflict.","leadership, communication, empathy"
-2,2,"How do you handle tight deadlines?","calm under pressure, organization, prioritization"
+2,1,"How do you handle tight deadlines?","calm under pressure, organization, prioritization"
+3,1,"Tell me about a time you had to explain a complex technical concept to a non-technical stakeholder.","communication, adaptability, patience"
+4,1,"Describe a situation where you had to learn a new technology quickly.","learning agility, adaptability, problem-solving"
+5,1,"How do you stay updated with the latest developments in machine learning?","continuous learning, curiosity, professional development"
+6,2,"How do you handle failure in a project?","resilience, learning from mistakes, growth mindset"
+7,2,"Describe a time you mentored a junior team member.","leadership, teaching, collaboration" 
