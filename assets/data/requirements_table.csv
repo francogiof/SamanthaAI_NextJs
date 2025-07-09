@@ -1,3 +1,2 @@
 requirement_id,creator_user_id,creator_role,role_name,responsibilities,required_skills,experience_required_years,company_id
-1,2,team_leader,Machine Learning Engineer,"Develop ML models, collaborate with data team, deploy to production.",Python,TensorFlow,PyTorch,ML Ops,3,1
-2,36,candidate,ML Engineer (Simulated),"End-to-end ML project, data cleaning, model selection, reporting.",Python,scikit-learn,pandas,2,2 
+2,36,candidate,Machine Learning Engineer (simulated),"Design and optimize ML models using LangChain and Python | Develop APIs and databases | Maintain data pipelines | Deploy models in production | Document ML workflows | Collaborate with teams | Contribute to libraries | Take ownership of tasks","LangChain|Python|REST APIs|SOAP APIs|Docker|Kubernetes|LLMs|prompt engineering|RAG|vector databases|AWS|GCP|Azure|CI/CD|Agile|Scrum",3,2

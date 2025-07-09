@@ -49,6 +49,7 @@ export default function CandidateApplicationSubdashboard() {
 	const [screeningComplete, setScreeningComplete] = useState(false);
 	const [screeningScore, setScreeningScore] = useState<number | null>(null);
 	const [passesScreening, setPassesScreening] = useState<boolean | null>(null);
+	const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
 	const userId = 36;
 
 	// Preview popup states
@@ -203,6 +204,42 @@ export default function CandidateApplicationSubdashboard() {
 		// Don't stop the streams - pass them to the screening interface
 		setShowPreviewPopup(false);
 		setShowScreening(true);
+	};
+
+	const generateQuestions = async () => {
+		try {
+			setIsGeneratingQuestions(true);
+			console.log('[ApplicationPage] Generating questions for requirement:', requirementId);
+			
+			const response = await fetch('/api/screening/generate-questions', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					requirementId: requirementId,
+					candidateId: null // We don't have candidate ID at this stage
+				}),
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				console.error('[ApplicationPage] Error generating questions:', errorData);
+				alert('Failed to generate questions: ' + (errorData.error || 'Unknown error'));
+				return;
+			}
+
+			const result = await response.json();
+			console.log('[ApplicationPage] Questions generated successfully:', result);
+			
+			alert(`Successfully generated ${result.questions.length} screening questions!`);
+			
+		} catch (error) {
+			console.error('[ApplicationPage] Error generating questions:', error);
+			alert('Failed to generate questions. Please try again.');
+		} finally {
+			setIsGeneratingQuestions(false);
+		}
 	};
 
 	function handleScreeningComplete(score: number, passes: boolean) {
@@ -446,42 +483,73 @@ export default function CandidateApplicationSubdashboard() {
 									</div>
 								</div>
 							) : (
-								<div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
-									<div className="flex items-center gap-4 mb-4">
-										<div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-											<Video className="w-6 h-6 text-white" />
+								<div className="space-y-4">
+									<div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+										<div className="flex items-center gap-4 mb-4">
+											<div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+												<Video className="w-6 h-6 text-white" />
+											</div>
+											<div>
+												<h3 className="text-lg font-semibold">Ready for Your Screening Interview?</h3>
+												<p className="text-muted-foreground">
+													Join the virtual interview room to meet with our AI screening agent
+												</p>
+											</div>
 										</div>
-										<div>
-											<h3 className="text-lg font-semibold">Ready for Your Screening Interview?</h3>
-											<p className="text-muted-foreground">
-												Join the virtual interview room to meet with our AI screening agent
-											</p>
+										
+										<div className="space-y-3 mb-6">
+											<div className="flex items-center gap-3">
+												<div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+												<span className="text-sm">15-20 minute interactive session</span>
+											</div>
+											<div className="flex items-center gap-3">
+												<div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+												<span className="text-sm">Role-specific questions and requirements review</span>
+											</div>
+											<div className="flex items-center gap-3">
+												<div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+												<span className="text-sm">Real-time chat and video simulation</span>
+											</div>
 										</div>
-									</div>
-									
-									<div className="space-y-3 mb-6">
-										<div className="flex items-center gap-3">
-											<div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-											<span className="text-sm">15-20 minute interactive session</span>
-										</div>
-										<div className="flex items-center gap-3">
-											<div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-											<span className="text-sm">Role-specific questions and requirements review</span>
-										</div>
-										<div className="flex items-center gap-3">
-											<div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-											<span className="text-sm">Real-time chat and video simulation</span>
-										</div>
+
+										<button
+											className="w-full bg-blue-600 text-white rounded-lg px-6 py-3 font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+											onClick={handleJoinMeeting}
+										>
+											<Video className="w-5 h-5" />
+											Join Meeting
+											<ArrowRight className="w-5 h-5" />
+										</button>
 									</div>
 
-									<button
-										className="w-full bg-blue-600 text-white rounded-lg px-6 py-3 font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-										onClick={handleJoinMeeting}
-									>
-										<Video className="w-5 h-5" />
-										Join Meeting
-										<ArrowRight className="w-5 h-5" />
-									</button>
+									{/* Generate Questions Button */}
+									<div className="bg-green-50 rounded-lg p-4 border border-green-200">
+										<div className="flex items-center justify-between">
+											<div>
+												<h4 className="font-semibold text-green-800">Generate Interview Questions</h4>
+												<p className="text-sm text-green-600">
+													Create AI-powered screening questions for this role
+												</p>
+											</div>
+											<button
+												onClick={generateQuestions}
+												disabled={isGeneratingQuestions}
+												className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+											>
+												{isGeneratingQuestions ? (
+													<>
+														<div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+														<span>Generating...</span>
+													</>
+												) : (
+													<>
+														<span>🤖</span>
+														<span>Generate Questions</span>
+													</>
+												)}
+											</button>
+										</div>
+									</div>
 								</div>
 							)}
 						</div>
