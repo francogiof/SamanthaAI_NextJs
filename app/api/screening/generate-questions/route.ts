@@ -8,6 +8,8 @@ interface Requirement {
   required_skills: string;
   experience_required_years: number;
   company_id: number;
+  creator_user_id: string;
+  creator_role: string;
 }
 
 interface ContextRequirement {
@@ -29,6 +31,7 @@ interface Candidate {
   personal_projects: string;
   introduction: string;
   cv_experience: string;
+  user_id: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -52,9 +55,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Requirement not found' }, { status: 404 });
     }
 
+    console.log('[API/screening/generate-questions] ✅ Requirement data retrieved:', {
+      requirement_id: requirement.requirement_id,
+      role_name: requirement.role_name,
+      responsibilities: requirement.responsibilities,
+      required_skills: requirement.required_skills,
+      experience_required_years: requirement.experience_required_years,
+      company_id: requirement.company_id,
+      creator_user_id: requirement.creator_user_id
+    });
+
     // Read context requirement data
     console.log('[API/screening/generate-questions] Reading context requirement data for ID:', requirementId);
     const contextRequirement = db.prepare('SELECT * FROM context_requirements_table WHERE requirement_id = ?').get(requirementId) as ContextRequirement | undefined;
+
+    if (contextRequirement) {
+      console.log('[API/screening/generate-questions] ✅ Context requirement data retrieved:', {
+        context_id: contextRequirement.context_id,
+        requirement_id: contextRequirement.requirement_id,
+        salary_range: contextRequirement.salary_range,
+        contract_type: contextRequirement.contract_type,
+        start_date: contextRequirement.start_date,
+        schedule: contextRequirement.schedule,
+        extra_notes: contextRequirement.extra_notes,
+        exclusion_criteria: contextRequirement.exclusion_criteria
+      });
+    } else {
+      console.log('[API/screening/generate-questions] ⚠️ No context requirement data found for requirement ID:', requirementId);
+    }
 
     // Read candidate data (if provided)
     let candidate: Candidate | undefined;
@@ -64,13 +92,43 @@ export async function POST(req: NextRequest) {
     } else {
       // If no candidateId provided, try to find by user_id from requirement
       console.log('[API/screening/generate-questions] No candidateId provided, looking for candidate by user_id:', requirement.creator_user_id);
+      
+      // Try multiple approaches to find the candidate
       candidate = db.prepare('SELECT * FROM candidate_table WHERE user_id = ?').get(requirement.creator_user_id) as Candidate | undefined;
+      
+      if (!candidate) {
+        // Try with string conversion
+        candidate = db.prepare('SELECT * FROM candidate_table WHERE user_id = ?').get(requirement.creator_user_id.toString()) as Candidate | undefined;
+      }
+      
+      if (!candidate) {
+        // Try with float conversion (in case user_id is stored as float)
+        candidate = db.prepare('SELECT * FROM candidate_table WHERE CAST(user_id AS REAL) = ?').get(parseFloat(requirement.creator_user_id.toString())) as Candidate | undefined;
+      }
+      
+      if (!candidate) {
+        // Try with integer conversion
+        candidate = db.prepare('SELECT * FROM candidate_table WHERE CAST(user_id AS INTEGER) = ?').get(parseInt(requirement.creator_user_id.toString())) as Candidate | undefined;
+      }
     }
 
     console.log('[API/screening/generate-questions] Candidate found:', !!candidate);
     if (candidate) {
-      console.log('[API/screening/generate-questions] Candidate name:', candidate.name);
-      console.log('[API/screening/generate-questions] Candidate experience:', candidate.experience_years, 'years');
+      console.log('[API/screening/generate-questions] ✅ Candidate data retrieved:', {
+        candidate_id: candidate.candidate_id,
+        name: candidate.name,
+        experience_years: candidate.experience_years,
+        education: candidate.education,
+        personal_projects: candidate.personal_projects,
+        introduction: candidate.introduction,
+        cv_experience: candidate.cv_experience,
+        user_id: candidate.user_id
+      });
+    } else {
+      console.log('[API/screening/generate-questions] ⚠️ No candidate data found. Searched with:', {
+        candidateId: candidateId,
+        user_id_from_requirement: requirement.creator_user_id
+      });
     }
 
     // Parse JSON fields if they exist
@@ -86,13 +144,16 @@ export async function POST(req: NextRequest) {
           if (requirement.required_skills.startsWith('[') || requirement.required_skills.startsWith('{')) {
             try {
               parsedRequirement.required_skills = JSON.parse(requirement.required_skills);
+              console.log('[API/screening/generate-questions] ✅ Parsed required_skills as JSON:', parsedRequirement.required_skills);
             } catch {
               // If JSON parsing fails, treat as string
               parsedRequirement.required_skills = requirement.required_skills;
+              console.log('[API/screening/generate-questions] ⚠️ Failed to parse required_skills as JSON, using as string:', parsedRequirement.required_skills);
             }
           } else {
             // It's just a string, keep it as is
             parsedRequirement.required_skills = requirement.required_skills;
+            console.log('[API/screening/generate-questions] ℹ️ Using required_skills as string:', parsedRequirement.required_skills);
           }
         }
       }
@@ -100,25 +161,31 @@ export async function POST(req: NextRequest) {
       if (candidate?.education && typeof candidate.education === 'string') {
         try {
           parsedCandidate!.education = JSON.parse(candidate.education);
+          console.log('[API/screening/generate-questions] ✅ Parsed education as JSON:', parsedCandidate!.education);
         } catch {
           // If JSON parsing fails, keep as string
           parsedCandidate!.education = candidate.education;
+          console.log('[API/screening/generate-questions] ⚠️ Failed to parse education as JSON, using as string:', parsedCandidate!.education);
         }
       }
       if (candidate?.personal_projects && typeof candidate.personal_projects === 'string') {
         try {
           parsedCandidate!.personal_projects = JSON.parse(candidate.personal_projects);
+          console.log('[API/screening/generate-questions] ✅ Parsed personal_projects as JSON:', parsedCandidate!.personal_projects);
         } catch {
           // If JSON parsing fails, keep as string
           parsedCandidate!.personal_projects = candidate.personal_projects;
+          console.log('[API/screening/generate-questions] ⚠️ Failed to parse personal_projects as JSON, using as string:', parsedCandidate!.personal_projects);
         }
       }
       if (candidate?.cv_experience && typeof candidate.cv_experience === 'string') {
         try {
           parsedCandidate!.cv_experience = JSON.parse(candidate.cv_experience);
+          console.log('[API/screening/generate-questions] ✅ Parsed cv_experience as JSON:', parsedCandidate!.cv_experience);
         } catch {
           // If JSON parsing fails, keep as string
           parsedCandidate!.cv_experience = candidate.cv_experience;
+          console.log('[API/screening/generate-questions] ⚠️ Failed to parse cv_experience as JSON, using as string:', parsedCandidate!.cv_experience);
         }
       }
     } catch (parseError) {
@@ -146,6 +213,9 @@ ${candidate ? `
 - Candidate Name: ${candidate.name}
 - Candidate Experience: ${candidate.experience_years} years
 - Candidate Introduction: ${candidate.introduction}
+- Candidate Education: ${typeof parsedCandidate!.education === 'object' ? JSON.stringify(parsedCandidate!.education) : parsedCandidate!.education}
+- Candidate Personal Projects: ${typeof parsedCandidate!.personal_projects === 'object' ? JSON.stringify(parsedCandidate!.personal_projects) : parsedCandidate!.personal_projects}
+- Candidate CV Experience: ${typeof parsedCandidate!.cv_experience === 'object' ? JSON.stringify(parsedCandidate!.cv_experience) : parsedCandidate!.cv_experience}
 ` : ''}
 
 QUESTION STRUCTURE REQUIREMENTS:
@@ -180,6 +250,18 @@ Return a JSON array with exactly 10 objects, each containing:
 }
 
 Make questions balanced between technical assessment, experience validation, and cultural fit.`;
+
+    console.log('[API/screening/generate-questions] 📝 Generated system prompt with data:');
+    console.log('[API/screening/generate-questions] - Role:', requirement.role_name);
+    console.log('[API/screening/generate-questions] - Responsibilities:', requirement.responsibilities);
+    console.log('[API/screening/generate-questions] - Required Skills:', parsedRequirement.required_skills);
+    console.log('[API/screening/generate-questions] - Experience Required:', requirement.experience_required_years, 'years');
+    console.log('[API/screening/generate-questions] - Context Requirement included:', !!contextRequirement);
+    console.log('[API/screening/generate-questions] - Candidate data included:', !!candidate);
+    if (candidate) {
+      console.log('[API/screening/generate-questions] - Candidate Name:', candidate.name);
+      console.log('[API/screening/generate-questions] - Candidate Experience:', candidate.experience_years, 'years');
+    }
 
     const apiKey = process.env.LEMONFOX_LLM_KEY;
     if (!apiKey) {
