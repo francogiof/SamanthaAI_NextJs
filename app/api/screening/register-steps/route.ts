@@ -19,31 +19,31 @@ async function completePlaceholdersWithAI(text: string, data: Record<string, any
       step: stepInfo
     };
 
-    const systemPrompt = `You are an expert HR professional and AI interviewer. Your task is to complete interview script placeholders with contextual, personalized content.
+    const systemPrompt = `You are an expert HR interviewer creating a professional screening interview script. Your task is to complete interview script placeholders with natural, concise content.
+
+CRITICAL RULES:
+1. ONLY replace placeholders like [candidate_info.full_name] with actual values
+2. DO NOT add extra content or explanations
+3. DO NOT answer questions yourself - only ask them
+4. Keep responses natural and conversational
+5. Maintain the original question structure
+6. Be concise - no long explanations
+7. Use professional but warm tone
 
 CONTEXT:
-- Candidate: ${context.candidate?.name || 'N/A'} (${context.candidate?.experience_years || 'N/A'} years experience)
+- Candidate: ${context.candidate?.name || 'N/A'}
 - Role: ${context.job?.role_name || 'N/A'}
 - Company: ${context.company?.name || 'TechCorp Solutions'}
-- Project: ${context.context?.project_description || context.job?.responsibilities || 'N/A'}
-- Required Skills: ${context.job?.required_skills || 'N/A'}
 
-STEP INFORMATION:
-- Step ID: ${stepInfo.id}
-- Step Type: ${stepInfo.type}
-- Focus Area: ${stepInfo.focus || 'General'}
-- Original Text: "${text}"
+STEP: ${stepInfo.step_name}
 
-TASK:
-Complete the placeholders in the text with personalized, contextual content. Replace placeholders like [candidate_info.full_name] with actual values from the context. If a placeholder doesn't have corresponding data, create appropriate, professional content.
+ORIGINAL TEXT: "${text}"
 
-RULES:
-1. Keep the tone professional, warm, and engaging
-2. Make it personal to the candidate and role
-3. Use actual data when available
-4. Create realistic content when data is missing
-5. Maintain the original structure and flow
-6. Return ONLY the completed text, no explanations
+TASK: Replace ONLY the placeholders in brackets with actual values. Do not add anything else. Return the exact same text with only placeholder replacements.
+
+EXAMPLE:
+Input: "Hello [candidate_info.full_name], how are you today?"
+Output: "Hello Franco Ccapa, how are you today?"
 
 Return the completed text:`;
 
@@ -57,10 +57,10 @@ Return the completed text:`;
         model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Complete this interview text: "${text}"` }
+          { role: 'user', content: `Complete this interview text by replacing placeholders only: "${text}"` }
         ],
-        max_tokens: 500,
-        temperature: 0.7,
+        max_tokens: 200,
+        temperature: 0.3,
         stream: false,
       }),
     });
@@ -93,7 +93,25 @@ function replacePlaceholders(text: string, data: Record<string, any>) {
     let value = data;
     for (const k of keys) {
       value = value?.[k];
-      if (value === undefined || value === null) return `[${key}]`;
+      if (value === undefined || value === null) {
+        // Provide sensible defaults for common placeholders
+        if (key === 'candidate_info.full_name') return 'the candidate';
+        if (key === 'job_offer_info.job_title') return 'this position';
+        if (key === 'company_info.company_name') return 'our company';
+        if (key === 'context_role_info.salary_range') return 'competitive salary';
+        if (key === 'candidate_info.availability_date') return 'as soon as possible';
+        if (key === 'candidate_info.salary_expectations') return 'competitive compensation';
+        if (key === 'context_role_info.project_description') return 'our projects';
+        if (key === 'context_role_info.ML_stack') return 'relevant technologies';
+        if (key === 'job_offer_info.required_tools') return 'required tools';
+        if (key === 'candidate_info.ml_frameworks_used') return 'ML frameworks';
+        if (key === 'candidate_info.cloud_experience') return 'cloud platforms';
+        if (key === 'candidate_info.project_highlights') return 'your projects';
+        if (key === 'candidate_info.devops_tools') return 'deployment tools';
+        if (key === 'candidate_info.last_job_description') return 'your previous role';
+        if (key === 'candidate_info.company') return 'your previous company';
+        return `[${key}]`;
+      }
     }
     return typeof value === 'string' ? value : String(value);
   });
@@ -131,6 +149,10 @@ export async function POST(req: NextRequest) {
     const hasCandidateId = tableInfo.some((col: any) => col.name === 'candidate_id');
     console.log('[API/screening/register-steps] Has candidate_id column:', hasCandidateId);
     
+    // Check if step_name column exists
+    const hasStepName = tableInfo.some((col: any) => col.name === 'step_name');
+    console.log('[API/screening/register-steps] Has step_name column:', hasStepName);
+    
     if (!hasCandidateId) {
       console.log('[API/screening/register-steps] Adding candidate_id column to table...');
       try {
@@ -138,6 +160,16 @@ export async function POST(req: NextRequest) {
         console.log('[API/screening/register-steps] Successfully added candidate_id column');
       } catch (error) {
         console.log('[API/screening/register-steps] Error adding candidate_id column:', error);
+      }
+    }
+    
+    if (!hasStepName) {
+      console.log('[API/screening/register-steps] Adding step_name column to table...');
+      try {
+        db.prepare('ALTER TABLE screening_interview_steps ADD COLUMN step_name TEXT').run();
+        console.log('[API/screening/register-steps] Successfully added step_name column');
+      } catch (error) {
+        console.log('[API/screening/register-steps] Error adding step_name column:', error);
       }
     }
 
@@ -184,28 +216,23 @@ export async function POST(req: NextRequest) {
     
     const insertStmt = db.prepare(`
       INSERT INTO screening_interview_steps 
-      (requirement_id, candidate_id, step_order, type, focus, includes, text, notes, fallback_if_missing)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (requirement_id, candidate_id, step_order, step_name, type, focus, includes, text, notes, fallback_if_missing)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     // Process steps sequentially without transaction since we need async AI calls
     let insertedCount = 0;
     for (let idx = 0; idx < SCREENING_SCRIPT_TEMPLATE.length; idx++) {
       const step = SCREENING_SCRIPT_TEMPLATE[idx];
-      console.log(`[API/screening/register-steps] Processing step ${idx}:`, { type: step.type, focus: step.focus });
-      
-      // Only static and semi-static steps are allowed for this agent
-      if (step.type === 'dynamic') {
-        console.log(`[API/screening/register-steps] Skipping dynamic step ${idx}`);
-        continue;
-      }
+      console.log(`[API/screening/register-steps] Processing step ${idx}:`, { type: step.type, focus: step.focus, step_name: step.step_name });
       
       // Use AI to complete placeholders
       const stepInfo = {
         id: step.id,
         type: step.type,
         focus: step.focus,
-        includes: step.includes
+        includes: step.includes,
+        step_name: step.step_name
       };
       
       const completedText = await completePlaceholdersWithAI(step.text, data, stepInfo);
@@ -216,6 +243,7 @@ export async function POST(req: NextRequest) {
           reqId,
           candId,
           idx,
+          step.step_name,
           step.type,
           step.focus || null,
           step.includes ? JSON.stringify(step.includes) : null,
