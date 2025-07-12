@@ -42,6 +42,23 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const [screeningScore, setScreeningScore] = useState<number | null>(null);
   const [passesScreening, setPassesScreening] = useState<boolean | null>(null);
 
+  // LangGraph interview state
+  const [currentStep, setCurrentStep] = useState(0);
+  const [totalSteps, setTotalSteps] = useState(0);
+  const [interviewMemory, setInterviewMemory] = useState<any>({
+    keyPoints: [],
+    followUpQuestions: [],
+    candidateStrengths: [],
+    areasOfConcern: []
+  });
+
+  // Focused interview state
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [contextWindow, setContextWindow] = useState(0);
+  const [completionRate, setCompletionRate] = useState(0);
+  const [stepCompleted, setStepCompleted] = useState(false);
+  const [needsFollowUp, setNeedsFollowUp] = useState(false);
+
   // Speech functionality states
   const [isListening, setIsListening] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -438,6 +455,36 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         setIsConnected(true);
         console.log('[ScreeningInterface] Screening context loaded:', data.screeningContext);
         
+        // Initialize focused interview session
+        try {
+          const sessionResponse = await fetch('/api/screening/focused-conversation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              candidateMessage: '',
+              candidateId: data.screeningContext?.candidate?.candidate_id,
+              requirementId: parseInt(requirementId),
+              sessionId: null,
+              isNewSession: true
+            })
+          });
+
+          const sessionData = await sessionResponse.json();
+          if (sessionData.success) {
+            setSessionId(sessionData.sessionId);
+            if (sessionData.progress) {
+              setTotalSteps(sessionData.progress.totalSteps);
+              setCurrentStep(sessionData.progress.currentStep);
+            }
+            if (sessionData.contextWindowInfo) {
+              setContextWindow(sessionData.contextWindowInfo.currentWindow);
+            }
+            console.log('[ScreeningInterface] Focused session initialized:', sessionData);
+          }
+        } catch (error) {
+          console.error('[ScreeningInterface] Error initializing focused session:', error);
+        }
+        
         // Start agent presentation
         setTimeout(() => {
           const welcomeMessage = 'Hello! I\'m Sarah, your screening interviewer. Welcome to TechCorp Solutions! How are you today?';
@@ -492,15 +539,16 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     setAgentTyping(true);
     
     try {
-      // Get AI response using conversation API
-      const response = await fetch('/api/screening/conversation', {
+      // Get AI response using focused conversation API
+      const response = await fetch('/api/screening/focused-conversation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           candidateMessage: messageText,
-          screeningContext,
-          conversationHistory: messages,
-          currentQuestion
+          candidateId: screeningContext?.candidate?.candidate_id,
+          requirementId: parseInt(requirementId),
+          sessionId: sessionId,
+          isNewSession: !sessionId
         })
       });
 
@@ -510,7 +558,33 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         setTimeout(() => {
           addAgentMessage(data.response);
           playAgentSpeech(data.response);
-          setScreeningProgress(prev => Math.min(prev + 25, 100));
+          
+          // Update session state
+          setSessionId(data.sessionId);
+          
+          // Update progress and context window
+          if (data.progress) {
+            setCompletionRate(data.progress.completionRate);
+            setCurrentStep(data.progress.currentStep);
+            setTotalSteps(data.progress.totalSteps);
+            setScreeningProgress(data.progress.completionRate);
+          }
+          
+          if (data.contextWindowInfo) {
+            setContextWindow(data.contextWindowInfo.currentWindow);
+          }
+          
+          // Update agent result state
+          if (data.agentResult) {
+            setStepCompleted(data.agentResult.stepCompleted);
+            setNeedsFollowUp(data.agentResult.needsFollowUp);
+          }
+          
+          // Check if interview is complete
+          if (data.interviewComplete) {
+            setScreeningComplete(true);
+            console.log('[ScreeningInterface] Interview completed via focused system');
+          }
         }, 1000);
       } else {
         // Fallback to simple response
@@ -518,7 +592,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           const fallbackResponse = 'Thank you for that response. Could you tell me more about your experience?';
           addAgentMessage(fallbackResponse);
           playAgentSpeech(fallbackResponse);
-          setScreeningProgress(prev => Math.min(prev + 25, 100));
+          setScreeningProgress(prev => Math.min(prev + 10, 100));
         }, 1000);
       }
     } catch (error) {
@@ -528,7 +602,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         const fallbackResponse = 'Thank you for sharing that. Let me ask you another question.';
         addAgentMessage(fallbackResponse);
         playAgentSpeech(fallbackResponse);
-        setScreeningProgress(prev => Math.min(prev + 25, 100));
+        setScreeningProgress(prev => Math.min(prev + 10, 100));
       }, 1000);
     }
   };
@@ -842,11 +916,34 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
                 Score: {screeningScore}/100
               </span>
             )}
+            {!screeningComplete && totalSteps > 0 && (
+              <span className="font-semibold">
+                Step {currentStep + 1} of {totalSteps} • {completionRate.toFixed(1)}% Complete
+              </span>
+            )}
           </span>
           {photosTaken > 0 && (
             <div className="flex items-center space-x-1 text-yellow-400">
               <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
               <span className="text-xs">📸 {photosTaken}/2 photos captured</span>
+            </div>
+          )}
+          {contextWindow >= 0 && (
+            <div className="flex items-center space-x-1 text-blue-400">
+              <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+              <span className="text-xs">📚 Section {contextWindow + 1}/3</span>
+            </div>
+          )}
+          {needsFollowUp && (
+            <div className="flex items-center space-x-1 text-orange-400">
+              <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+              <span className="text-xs">🔄 Follow-up needed</span>
+            </div>
+          )}
+          {stepCompleted && (
+            <div className="flex items-center space-x-1 text-green-400">
+              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+              <span className="text-xs">✅ Step completed</span>
             </div>
           )}
         </div>
