@@ -41,36 +41,36 @@ The platform uses a comprehensive database schema with the following core tables
 - Cleaned duplicate data and fixed data type inconsistencies
 - Established proper foreign key relationships
 
-### 2. AI-Powered Question Generation
-**File**: `app/api/screening/generate-questions/route.ts`
+### 2. AI-Powered Placeholder Completion
+**File**: `app/api/screening/register-steps/route.ts`
 
 #### Features:
-- **Personalized Questions**: Uses candidate background, experience, and role requirements
-- **Structured Approach**: Generates exactly 10 questions covering:
-  1. Introduction/Icebreaker
-  2. Role Understanding
-  3. Technical Skills Assessment
-  4. Experience Validation
-  5. Problem-Solving Approach
-  6. Team Collaboration
-  7. Learning and Growth
-  8. Communication Skills
-  9. Work Conditions & Availability
-  10. Motivation & Cultural Fit
+- **AI-Powered Placeholder Completion**: Uses Lemonfox LLM to intelligently complete interview script placeholders
+- **Contextual Personalization**: Generates personalized content based on candidate background, experience, and role requirements
+- **Fallback System**: Falls back to simple placeholder replacement if AI is unavailable
+- **Structured Approach**: Processes static and semi-static interview steps with AI enhancement
 
 #### Technical Implementation:
-- **Lemonfox LLM Integration**: Uses GPT-4o-mini for question generation
-- **Rich Context**: Incorporates candidate projects, education, and experience
-- **Database Storage**: Automatically saves generated questions to `screening_questions_table`
-- **Error Handling**: Comprehensive error handling and fallback mechanisms
-- **JSON Parsing**: Handles complex data structures from candidate profiles
+- **Lemonfox LLM Integration**: Uses GPT-4o-mini for intelligent placeholder completion
+- **Rich Context**: Incorporates candidate projects, education, experience, and role requirements
+- **Database Storage**: Automatically saves completed steps to `screening_interview_steps` table
+- **Error Handling**: Comprehensive error handling with fallback to simple replacement
+- **Async Processing**: Handles AI API calls asynchronously for better performance
 
-#### Prompt Engineering:
+#### AI Prompt Engineering:
 The system uses sophisticated prompts that include:
+- Candidate background and experience data
 - Role-specific requirements and responsibilities
-- Candidate background and experience
 - Company context and job details
-- Structured output format with question types and focus areas
+- Step-specific information and focus areas
+- Professional tone and engagement guidelines
+
+#### Placeholder Completion Process:
+1. **Data Gathering**: Collects candidate, job, and company data from database
+2. **Context Building**: Creates rich context for AI processing
+3. **AI Completion**: Sends each step to LLM for intelligent placeholder completion
+4. **Database Storage**: Saves completed steps with personalized content
+5. **Fallback Handling**: Uses simple replacement if AI fails
 
 ### 3. Voice Chat Integration
 **File**: `VOICE_CHAT_INTEGRATION.md`, `components/screening-interface.tsx`
@@ -114,9 +114,10 @@ The system uses sophisticated prompts that include:
 **Directory**: `app/api/`
 
 #### Core Endpoints:
-- `/api/screening/generate-questions` - AI question generation
-- `/api/screening/conversation` - Interview conversation management
-- `/api/screening/score` - Interview scoring and evaluation
+- `/api/screening/register-steps` - Register screening interview steps with AI completion
+- `/api/screening/start` - Initialize screening session
+- `/api/screening/conversation` - Real-time conversation with AI interviewer
+- `/api/screening/score` - Calculate and store screening scores
 - `/api/speech/tts` - Text-to-speech conversion
 - `/api/speech/stt` - Speech-to-text conversion
 - `/api/candidate/*` - Candidate management

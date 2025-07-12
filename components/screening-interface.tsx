@@ -41,7 +41,6 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const [screeningComplete, setScreeningComplete] = useState(false);
   const [screeningScore, setScreeningScore] = useState<number | null>(null);
   const [passesScreening, setPassesScreening] = useState<boolean | null>(null);
-  const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
 
   // Speech functionality states
   const [isListening, setIsListening] = useState(false);
@@ -629,42 +628,6 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     onComplete(screeningScore || 0, passesScreening || false);
   };
 
-  const generateQuestions = async () => {
-    try {
-      setIsGeneratingQuestions(true);
-      console.log('[ScreeningInterface] Generating questions for requirement:', requirementId);
-      
-      const response = await fetch('/api/screening/generate-questions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          requirementId: requirementId,
-          candidateId: screeningContext?.candidate?.candidate_id
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('[ScreeningInterface] Error generating questions:', errorData);
-        alert('Failed to generate questions: ' + (errorData.error || 'Unknown error'));
-        return;
-      }
-
-      const result = await response.json();
-      console.log('[ScreeningInterface] Questions generated successfully:', result);
-      
-      alert(`Successfully generated ${result.questions.length} screening questions for ${result.requirement.role_name}!`);
-      
-    } catch (error) {
-      console.error('[ScreeningInterface] Error generating questions:', error);
-      alert('Failed to generate questions. Please try again.');
-    } finally {
-      setIsGeneratingQuestions(false);
-    }
-  };
-
   const nextSlide = () => {
     console.log('[ScreeningInterface] Moving to next slide:', currentSlide + 1);
     setCurrentSlide(prev => Math.min(prev + 1, agentSlides.length - 1));
@@ -1078,25 +1041,6 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
             Next
           </button>
         </div>
-        
-        {/* Generate Questions Button */}
-        <button
-          onClick={generateQuestions}
-          disabled={isGeneratingQuestions}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-        >
-          {isGeneratingQuestions ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>Generating...</span>
-            </>
-          ) : (
-            <>
-              <span>🤖</span>
-              <span>Generate Questions</span>
-            </>
-          )}
-        </button>
       </div>
 
       {/* Google Meet-style Floating Controls */}

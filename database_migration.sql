@@ -133,3 +133,23 @@ WHERE question_type = 'behavioral';
 -- 13. Drop old tables that are being replaced
 DROP TABLE IF EXISTS qa_table;
 DROP TABLE IF EXISTS candidate_answers_table; 
+
+-- 14. Create screening_interview_steps table
+CREATE TABLE IF NOT EXISTS screening_interview_steps (
+    step_id TEXT PRIMARY KEY,
+    requirement_id TEXT NOT NULL,
+    candidate_id TEXT NOT NULL,
+    step_order INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    focus TEXT,
+    includes TEXT,
+    text TEXT NOT NULL,
+    notes TEXT,
+    fallback_if_missing TEXT,
+    FOREIGN KEY (requirement_id) REFERENCES requirements_table(requirement_id),
+    FOREIGN KEY (candidate_id) REFERENCES candidate_table(candidate_id)
+);
+
+-- 15. Add candidate_id column to existing screening_interview_steps table if it doesn't exist
+-- This handles the case where the table was created before the candidate_id column was added
+ALTER TABLE screening_interview_steps ADD COLUMN candidate_id TEXT; 

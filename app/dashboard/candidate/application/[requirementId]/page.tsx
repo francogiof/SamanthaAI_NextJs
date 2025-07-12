@@ -51,6 +51,7 @@ export default function CandidateApplicationSubdashboard() {
 	const [passesScreening, setPassesScreening] = useState<boolean | null>(null);
 	const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
 	const userId = 36;
+	const candidateId = 2; // TODO: Replace with dynamic lookup from session/profile if needed
 
 	// Preview popup states
 	const [showPreviewPopup, setShowPreviewPopup] = useState(false);
@@ -209,34 +210,34 @@ export default function CandidateApplicationSubdashboard() {
 	const generateQuestions = async () => {
 		try {
 			setIsGeneratingQuestions(true);
-			console.log('[ApplicationPage] Generating questions for requirement:', requirementId);
+			console.log('[ApplicationPage] Registering screening steps for requirement:', requirementId, 'candidate:', candidateId);
 			
-			const response = await fetch('/api/screening/generate-questions', {
+			const response = await fetch('/api/screening/register-steps', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 				},
 				body: JSON.stringify({
 					requirementId: requirementId,
-					candidateId: null // We don't have candidate ID at this stage
+					candidateId: candidateId
 				}),
 			});
 
 			if (!response.ok) {
 				const errorData = await response.json();
-				console.error('[ApplicationPage] Error generating questions:', errorData);
-				alert('Failed to generate questions: ' + (errorData.error || 'Unknown error'));
+				console.error('[ApplicationPage] Error registering steps:', errorData);
+				alert('Failed to register screening steps: ' + (errorData.error || 'Unknown error'));
 				return;
 			}
 
 			const result = await response.json();
-			console.log('[ApplicationPage] Questions generated successfully:', result);
+			console.log('[ApplicationPage] Screening steps registered successfully:', result);
 			
-			alert(`Successfully generated ${result.questions.length} screening questions!`);
+			alert(`Successfully registered ${result.steps} screening steps!`);
 			
 		} catch (error) {
-			console.error('[ApplicationPage] Error generating questions:', error);
-			alert('Failed to generate questions. Please try again.');
+			console.error('[ApplicationPage] Error registering steps:', error);
+			alert('Failed to register screening steps. Please try again.');
 		} finally {
 			setIsGeneratingQuestions(false);
 		}
