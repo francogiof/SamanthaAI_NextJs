@@ -223,3 +223,322 @@
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
 } 
+
+/* Step completion indicator animations */
+.step-indicator {
+  transition: all 0.3s ease;
+}
+
+.step-indicator:hover {
+  transform: scale(1.1);
+}
+
+.step-indicator.completed {
+  animation: pulse-green 2s infinite;
+}
+
+.step-indicator.partial {
+  animation: pulse-yellow 2s infinite;
+}
+
+.step-indicator.current {
+  animation: pulse-blue 1s infinite;
+}
+
+.step-indicator.second-chance {
+  animation: pulse-red 1.5s infinite;
+}
+
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+  50% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+}
+
+@keyframes pulse-yellow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7); }
+  50% { box-shadow: 0 0 0 4px rgba(234, 179, 8, 0); }
+}
+
+@keyframes pulse-blue {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+  50% { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0); }
+}
+
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+}
+
+/* Status indicator animations */
+.status-indicator {
+  animation: fadeInOut 2s ease-in-out infinite;
+}
+
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* Second chance warning animation */
+.second-chance-warning {
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+/* Progress bar enhancements */
+.progress-bar {
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  transition: width 0.5s ease;
+}
+
+/* Chat message enhancements */
+.chat-message {
+  transition: all 0.3s ease;
+}
+
+.chat-message:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Agent typing indicator */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  animation: typing 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typing {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Video area enhancements */
+.video-area {
+  position: relative;
+}
+
+.candidate-video-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.candidate-video-container video {
+  transition: opacity 0.3s ease;
+}
+
+/* Audio indicator enhancements */
+.audio-indicator {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.audio-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.audio-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  animation: audioWave 1.2s infinite ease-in-out;
+}
+
+.audio-dot:nth-child(1) { animation-delay: 0s; }
+.audio-dot:nth-child(2) { animation-delay: 0.2s; }
+.audio-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes audioWave {
+  0%, 100% {
+    transform: scaleY(0.5);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* Countdown indicator */
+.countdown-indicator {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.countdown-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #fbbf24;
+  animation: countdownPulse 1s infinite;
+}
+
+@keyframes countdownPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+}
+
+/* Avatar animations */
+.avatar-talking {
+  background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+  animation: avatarTalk 0.6s ease-in-out infinite;
+}
+
+.avatar-listening {
+  background: linear-gradient(45deg, #10b981, #059669);
+  animation: avatarListen 0.8s ease-in-out infinite;
+}
+
+@keyframes avatarTalk {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes avatarListen {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+} 
+
+/* Speaking Timer */
+.speaking-timer {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 10;
+}
+
+.speaking-timer-circle {
+  position: relative;
+  width: 60px;
+  height: 60px;
+}
+
+.speaking-timer-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.speaking-timer-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 3;
+}
+
+.speaking-timer-progress {
+  fill: none;
+  stroke: #10b981;
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.5s ease;
+}
+
+.speaking-timer-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  font-weight: bold;
+  color: #10b981;
+}
+
+/* Auto-microphone indicator */
+.auto-microphone-indicator {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(16, 185, 129, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 500;
+  z-index: 10;
+}
+
+/* Enhanced countdown indicator */
+.countdown-indicator {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 8px 12px;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.countdown-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #fbbf24;
+  border-radius: 50%;
+  animation: countdownPulse 1s infinite;
+}
+
+@keyframes countdownPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+} 

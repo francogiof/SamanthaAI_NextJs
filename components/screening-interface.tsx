@@ -58,6 +58,10 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const [completionRate, setCompletionRate] = useState(0);
   const [stepCompleted, setStepCompleted] = useState(false);
   const [needsFollowUp, setNeedsFollowUp] = useState(false);
+  const [needsSecondChance, setNeedsSecondChance] = useState(false);
+  const [allStepsWithStatus, setAllStepsWithStatus] = useState<any[]>([]);
+  const [stepsWithNoResponse, setStepsWithNoResponse] = useState(0);
+  const [stepsWithSecondChance, setStepsWithSecondChance] = useState(0);
 
   // Speech functionality states
   const [isListening, setIsListening] = useState(false);
@@ -65,6 +69,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [microphonePermission, setMicrophonePermission] = useState<'granted' | 'denied' | 'prompt' | 'unknown'>('unknown');
   const [autoRecordCountdown, setAutoRecordCountdown] = useState<number | null>(null);
+  const [speakingTimer, setSpeakingTimer] = useState<number | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [autoMicrophoneEnabled, setAutoMicrophoneEnabled] = useState(false);
 
   // Photo capture for transparency
   const [photosTaken, setPhotosTaken] = useState(0);
@@ -128,6 +135,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       console.log('[ScreeningInterface] Using preview streams and permissions');
       setMicrophonePermission('granted');
       setIsCameraOn(true);
+      setAutoMicrophoneEnabled(true);
       streamRef.current = previewStream;
       
       // Set up video element with existing stream
@@ -325,16 +333,22 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     recognition.onstart = () => {
       console.log('[ScreeningInterface] Speech recognition started');
       setIsListening(true);
+      // Start 15-second speaking timer
+      startSpeakingTimer();
     };
 
     recognition.onend = () => {
       console.log('[ScreeningInterface] Speech recognition ended');
       setIsListening(false);
+      setIsSpeaking(false);
+      setSpeakingTimer(null);
     };
 
     recognition.onerror = (event: any) => {
       console.error('[ScreeningInterface] Speech recognition error:', event.error);
       setIsListening(false);
+      setIsSpeaking(false);
+      setSpeakingTimer(null);
       
       if (event.error === 'not-allowed') {
         setMicrophonePermission('denied');
@@ -368,7 +382,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     if (screeningComplete || isListening || microphonePermission !== 'granted') return;
     
     console.log('[ScreeningInterface] Starting auto-recording countdown...');
-    setAutoRecordCountdown(3);
+    setAutoRecordCountdown(1); // Reduced from 3 to 1 second
     
     countdownRef.current = setInterval(() => {
       setAutoRecordCountdown(prev => {
@@ -389,9 +403,31 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     }, 1000);
   };
 
+  const startSpeakingTimer = () => {
+    if (screeningComplete || !isListening) return;
+    
+    console.log('[ScreeningInterface] Starting 15-second speaking timer...');
+    setSpeakingTimer(15);
+    setIsSpeaking(true);
+    
+    const speakingInterval = setInterval(() => {
+      setSpeakingTimer(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(speakingInterval);
+          setSpeakingTimer(null);
+          setIsSpeaking(false);
+          console.log('[ScreeningInterface] Speaking timer completed, stopping recognition...');
+          stopSpeechRecognition();
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
   const playAgentSpeech = async (text: string) => {
     if (!audioEnabled) {
-      // If audio is disabled, still start countdown
+      // If audio is disabled, still start countdown after 1 second
       setTimeout(() => {
         if (!screeningComplete && !isListening && microphonePermission === 'granted') {
           startAutoRecordingCountdown();
@@ -419,22 +455,34 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           audioRef.current.onended = () => {
             setIsPlayingAudio(false);
             URL.revokeObjectURL(audioUrl);
-            // Start countdown after agent finishes speaking
-            startAutoRecordingCountdown();
+            // Start countdown after agent finishes speaking (reduced to 1 second)
+            setTimeout(() => {
+              if (!screeningComplete && !isListening && microphonePermission === 'granted') {
+                startAutoRecordingCountdown();
+              }
+            }, 1000);
           };
           await audioRef.current.play();
         }
       } else {
         console.error('[ScreeningInterface] TTS failed:', response.status);
         setIsPlayingAudio(false);
-        // Start countdown even if TTS fails
-        startAutoRecordingCountdown();
+        // Start countdown even if TTS fails (reduced to 1 second)
+        setTimeout(() => {
+          if (!screeningComplete && !isListening && microphonePermission === 'granted') {
+            startAutoRecordingCountdown();
+          }
+        }, 1000);
       }
     } catch (error) {
       console.error('[ScreeningInterface] Error playing speech:', error);
       setIsPlayingAudio(false);
-      // Start countdown even if TTS fails
-      startAutoRecordingCountdown();
+      // Start countdown even if TTS fails (reduced to 1 second)
+      setTimeout(() => {
+        if (!screeningComplete && !isListening && microphonePermission === 'granted') {
+          startAutoRecordingCountdown();
+        }
+      }, 1000);
     }
   };
 
@@ -568,16 +616,24 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
             setCurrentStep(data.progress.currentStep);
             setTotalSteps(data.progress.totalSteps);
             setScreeningProgress(data.progress.completionRate);
+            setStepsWithNoResponse(data.progress.stepsWithNoResponse);
+            setStepsWithSecondChance(data.progress.stepsWithSecondChance);
           }
           
           if (data.contextWindowInfo) {
             setContextWindow(data.contextWindowInfo.currentWindow);
           }
           
+          // Update step status for indicators
+          if (data.allStepsWithStatus) {
+            setAllStepsWithStatus(data.allStepsWithStatus);
+          }
+          
           // Update agent result state
           if (data.agentResult) {
             setStepCompleted(data.agentResult.stepCompleted);
             setNeedsFollowUp(data.agentResult.needsFollowUp);
+            setNeedsSecondChance(data.agentResult.needsSecondChance);
           }
           
           // Check if interview is complete
@@ -940,10 +996,28 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
               <span className="text-xs">🔄 Follow-up needed</span>
             </div>
           )}
+          {needsSecondChance && (
+            <div className="flex items-center space-x-1 text-red-400">
+              <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+              <span className="text-xs">⚠️ Second chance given</span>
+            </div>
+          )}
           {stepCompleted && (
             <div className="flex items-center space-x-1 text-green-400">
               <div className="w-2 h-2 bg-green-400 rounded-full"></div>
               <span className="text-xs">✅ Step completed</span>
+            </div>
+          )}
+          {stepsWithNoResponse > 0 && (
+            <div className="flex items-center space-x-1 text-gray-400">
+              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+              <span className="text-xs">❌ {stepsWithNoResponse} unanswered</span>
+            </div>
+          )}
+          {stepsWithSecondChance > 0 && (
+            <div className="flex items-center space-x-1 text-purple-400">
+              <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+              <span className="text-xs">🔄 {stepsWithSecondChance} second chances</span>
             </div>
           )}
         </div>
@@ -976,6 +1050,13 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
 
             {/* Candidate Video */}
             <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative overflow-hidden candidate-video-container">
+              {/* Auto-microphone indicator */}
+              {autoMicrophoneEnabled && (
+                <div className="auto-microphone-indicator">
+                  🎤 Auto-enabled
+                </div>
+              )}
+              
               {/* Always render video element but control visibility */}
               <video
                 ref={videoRef}
@@ -987,6 +1068,31 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
                 playsInline
                 style={{ display: isCameraOn ? 'block' : 'none' }}
               />
+              
+              {/* Speaking Timer - show when camera is on too */}
+              {speakingTimer !== null && isSpeaking && isCameraOn && (
+                <div className="speaking-timer">
+                  <div className="speaking-timer-circle">
+                    <svg className="speaking-timer-svg" viewBox="0 0 36 36">
+                      <path
+                        className="speaking-timer-bg"
+                        d="M18 2.0845
+                          a 15.9155 15.9155 0 0 1 0 31.831
+                          a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                      <path
+                        className="speaking-timer-progress"
+                        strokeDasharray={`${(speakingTimer / 15) * 100}, 100`}
+                        d="M18 2.0845
+                          a 15.9155 15.9155 0 0 1 0 31.831
+                          a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                    </svg>
+                    <div className="speaking-timer-text">{speakingTimer}s</div>
+                  </div>
+                  <span className="text-green-400 text-sm">Speaking time</span>
+                </div>
+              )}
               
               {/* Show avatar when camera is off */}
               {!isCameraOn && (
@@ -1016,6 +1122,30 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
                       <span className="text-yellow-400 text-sm">Listening in {autoRecordCountdown}s...</span>
                     </div>
                   )}
+                  {/* Speaking Timer */}
+                  {speakingTimer !== null && isSpeaking && (
+                    <div className="speaking-timer">
+                      <div className="speaking-timer-circle">
+                        <svg className="speaking-timer-svg" viewBox="0 0 36 36">
+                          <path
+                            className="speaking-timer-bg"
+                            d="M18 2.0845
+                              a 15.9155 15.9155 0 0 1 0 31.831
+                              a 15.9155 15.9155 0 0 1 0 -31.831"
+                          />
+                          <path
+                            className="speaking-timer-progress"
+                            strokeDasharray={`${(speakingTimer / 15) * 100}, 100`}
+                            d="M18 2.0845
+                              a 15.9155 15.9155 0 0 1 0 31.831
+                              a 15.9155 15.9155 0 0 1 0 -31.831"
+                          />
+                        </svg>
+                        <div className="speaking-timer-text">{speakingTimer}s</div>
+                      </div>
+                      <span className="text-green-400 text-sm">Speaking time remaining</span>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -1039,6 +1169,52 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
               </div>
               <p className="text-xs text-gray-400 mt-1">Progress: {screeningProgress}%</p>
             </div>
+            
+            {/* Step Completion Indicators */}
+            {allStepsWithStatus.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs text-gray-400 mb-2">Question Status:</p>
+                <div className="grid grid-cols-5 gap-1">
+                  {allStepsWithStatus.map((step, index) => (
+                    <div
+                      key={step.step_id}
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold step-indicator ${
+                        step.status === 'completed' ? 'bg-green-500 text-white completed' :
+                        step.status === 'partial' ? 'bg-yellow-500 text-white partial' :
+                        step.status === 'current' ? 'bg-blue-500 text-white current' :
+                        step.status === 'second-chance' ? 'bg-red-500 text-white second-chance' :
+                        'bg-gray-500 text-white'
+                      }`}
+                      title={`${step.step_name}: ${step.status}`}
+                    >
+                      {index + 1}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                  <div className="flex items-center space-x-1">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-gray-300">Completed</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                    <span className="text-gray-300">Partial</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <span className="text-gray-300">Current</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <span className="text-gray-300">Second Chance</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+                    <span className="text-gray-300">No Response</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Messages */}

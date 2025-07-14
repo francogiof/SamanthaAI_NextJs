@@ -51,11 +51,24 @@ export async function POST(req: NextRequest) {
     // Get updated progress and context window info
     const progress = focusedInterviewAgent.getProgress(currentSessionId);
     const contextWindowInfo = focusedInterviewAgent.getContextWindowInfo(currentSessionId);
+    const allStepsWithStatus = focusedInterviewAgent.getAllStepsWithStatus(currentSessionId);
 
     // Check if we should advance context window
     if (interviewManager.shouldAdvanceContextWindow(currentSessionId)) {
       interviewManager.advanceContextWindow(currentSessionId);
       console.log('[API/screening/focused-conversation] Advanced context window');
+      
+      // If this was a section transition, modify the response
+      if (agentResult.shouldMove && !candidateMessage) {
+        const sectionMessage = focusedInterviewAgent.getSectionTransitionMessage(currentSessionId);
+        agentResult.response = sectionMessage + ' ' + agentResult.response;
+      }
+    }
+
+    // Check if we should advance to next section
+    const shouldAdvanceSection = focusedInterviewAgent.shouldAdvanceToNextSection(currentSessionId);
+    if (shouldAdvanceSection && !candidateMessage) {
+      console.log('[API/screening/focused-conversation] Should advance to next section');
     }
 
     console.log('[API/screening/focused-conversation] Generated response:', {
@@ -64,7 +77,10 @@ export async function POST(req: NextRequest) {
       reason: agentResult.reason,
       stepCompleted: agentResult.stepCompleted,
       needsFollowUp: agentResult.needsFollowUp,
-      progress: progress.completionRate.toFixed(1) + '%'
+      needsSecondChance: agentResult.needsSecondChance,
+      progress: progress.completionRate.toFixed(1) + '%',
+      stepsWithNoResponse: progress.stepsWithNoResponse,
+      stepsWithSecondChance: progress.stepsWithSecondChance
     });
 
     return NextResponse.json({ 
@@ -73,11 +89,13 @@ export async function POST(req: NextRequest) {
       sessionId: currentSessionId,
       progress,
       contextWindowInfo,
+      allStepsWithStatus,
       agentResult: {
         shouldMove: agentResult.shouldMove,
         reason: agentResult.reason,
         stepCompleted: agentResult.stepCompleted,
-        needsFollowUp: agentResult.needsFollowUp
+        needsFollowUp: agentResult.needsFollowUp,
+        needsSecondChance: agentResult.needsSecondChance
       },
       interviewComplete: progress.interviewComplete
     });

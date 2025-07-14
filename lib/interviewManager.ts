@@ -18,6 +18,7 @@ export interface StepResponse {
   candidateResponse?: string;
   followUpCount: number;
   maxFollowUps: number;
+  secondChanceUsed: boolean; // Track if second chance was given
   completed: boolean;
 }
 
@@ -61,7 +62,8 @@ export class InterviewManager {
         hasResponse: false,
         responseQuality: 'none',
         followUpCount: 0,
-        maxFollowUps: 3, // Maximum 3 follow-up attempts per step
+        maxFollowUps: 1, // Reduced from 3 to 1 to prevent follow-up loops
+        secondChanceUsed: false, // Track second chance usage
         completed: false
       });
     });
@@ -91,6 +93,37 @@ export class InterviewManager {
     return sessionId;
   }
 
+  // Move to next step
+  moveToNextStep(sessionId: string): boolean {
+    const session = this.sessions.get(sessionId);
+    if (!session) return false;
+
+    // Mark current step as complete if second chance was used but no response
+    const currentStep = this.getCurrentStep(sessionId);
+    if (currentStep.response && currentStep.response.secondChanceUsed && !currentStep.response.hasResponse) {
+      currentStep.response.completed = true;
+      console.log(`[InterviewManager] Marked step ${currentStep.step?.step_id} as complete after second chance with no response`);
+    }
+
+    session.currentStep++;
+    session.lastActivity = new Date();
+
+    // Check if we need to advance context window
+    if (this.shouldAdvanceContextWindow(sessionId)) {
+      this.advanceContextWindow(sessionId);
+      console.log(`[InterviewManager] Advanced to context window ${session.currentContextWindow} after step ${session.currentStep}`);
+    }
+
+    // Check if interview is complete
+    if (session.currentStep >= session.totalSteps) {
+      session.interviewComplete = true;
+      console.log(`[InterviewManager] Interview completed for session ${sessionId}`);
+    }
+
+    console.log(`[InterviewManager] Moved to step ${session.currentStep} of ${session.totalSteps} in window ${session.currentContextWindow}`);
+    return true;
+  }
+
   // Get current context window (1/3 of steps)
   getCurrentContextWindow(sessionId: string): InterviewStep[] {
     const session = this.sessions.get(sessionId);
@@ -101,6 +134,7 @@ export class InterviewManager {
     const startIndex = session.currentContextWindow * stepsPerWindow;
     const endIndex = Math.min(startIndex + stepsPerWindow, allSteps.length);
 
+    console.log(`[InterviewManager] Context window ${session.currentContextWindow}: steps ${startIndex + 1}-${endIndex} of ${allSteps.length}`);
     return allSteps.slice(startIndex, endIndex);
   }
 
@@ -115,7 +149,9 @@ export class InterviewManager {
       return response?.completed || false;
     });
 
-    return completedInWindow && session.currentContextWindow < 2;
+    const shouldAdvance = completedInWindow && session.currentContextWindow < 2;
+    console.log(`[InterviewManager] Should advance context window: ${shouldAdvance} (completed: ${completedInWindow}, current window: ${session.currentContextWindow})`);
+    return shouldAdvance;
   }
 
   // Advance to next context window
@@ -135,9 +171,17 @@ export class InterviewManager {
     if (!session) return { step: null, response: null };
 
     const allSteps = this.stepsCache.get(`${session.candidateId}_${session.requirementId}`) || [];
+    
+    // Ensure currentStep is within bounds
+    if (session.currentStep >= allSteps.length) {
+      console.log(`[InterviewManager] Current step ${session.currentStep} exceeds total steps ${allSteps.length}`);
+      return { step: null, response: null };
+    }
+    
     const currentStep = allSteps[session.currentStep];
     const response = currentStep ? session.stepResponses.get(currentStep.step_id) : null;
 
+    console.log(`[InterviewManager] Current step: ${session.currentStep + 1}/${allSteps.length} (ID: ${currentStep?.step_id}, Name: ${currentStep?.step_name})`);
     return { step: currentStep || null, response: response || null };
   }
 
@@ -155,7 +199,7 @@ export class InterviewManager {
     response.completed = quality === 'complete';
     session.lastActivity = new Date();
 
-    console.log(`[InterviewManager] Recorded response for step ${stepId}, quality: ${quality}`);
+    console.log(`[InterviewManager] Recorded response for step ${stepId}, quality: ${quality}, completed: ${response.completed}`);
     return true;
   }
 
@@ -168,6 +212,31 @@ export class InterviewManager {
     if (!response) return false;
 
     return !response.completed && response.followUpCount < response.maxFollowUps;
+  }
+
+  // Check if step needs second chance (no response at all)
+  needsSecondChance(sessionId: string, stepId: number): boolean {
+    const session = this.sessions.get(sessionId);
+    if (!session) return false;
+
+    const response = session.stepResponses.get(stepId);
+    if (!response) return false;
+
+    return !response.hasResponse && !response.secondChanceUsed;
+  }
+
+  // Mark second chance as used
+  useSecondChance(sessionId: string, stepId: number): boolean {
+    const session = this.sessions.get(sessionId);
+    if (!session) return false;
+
+    const response = session.stepResponses.get(stepId);
+    if (!response) return false;
+
+    response.secondChanceUsed = true;
+    session.lastActivity = new Date();
+    console.log(`[InterviewManager] Second chance used for step ${stepId}`);
+    return true;
   }
 
   // Increment follow-up count
@@ -184,24 +253,6 @@ export class InterviewManager {
     return true;
   }
 
-  // Move to next step
-  moveToNextStep(sessionId: string): boolean {
-    const session = this.sessions.get(sessionId);
-    if (!session) return false;
-
-    session.currentStep++;
-    session.lastActivity = new Date();
-
-    // Check if interview is complete
-    if (session.currentStep >= session.totalSteps) {
-      session.interviewComplete = true;
-      console.log(`[InterviewManager] Interview completed for session ${sessionId}`);
-    }
-
-    console.log(`[InterviewManager] Moved to step ${session.currentStep} of ${session.totalSteps}`);
-    return true;
-  }
-
   // Get incomplete steps in current context window
   getIncompleteSteps(sessionId: string): InterviewStep[] {
     const session = this.sessions.get(sessionId);
@@ -214,6 +265,31 @@ export class InterviewManager {
     });
   }
 
+  // Get all steps with their completion status for UI indicators
+  getAllStepsWithStatus(sessionId: string): Array<InterviewStep & { status: 'completed' | 'partial' | 'no-response' | 'second-chance' | 'current' }> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return [];
+
+    const allSteps = this.stepsCache.get(`${session.candidateId}_${session.requirementId}`) || [];
+    
+    return allSteps.map((step, index) => {
+      const response = session.stepResponses.get(step.step_id);
+      let status: 'completed' | 'partial' | 'no-response' | 'second-chance' | 'current' = 'no-response';
+      
+      if (index === session.currentStep) {
+        status = 'current';
+      } else if (response?.completed) {
+        status = 'completed';
+      } else if (response?.hasResponse && response.responseQuality === 'partial') {
+        status = 'partial';
+      } else if (response?.secondChanceUsed) {
+        status = 'second-chance';
+      }
+      
+      return { ...step, status };
+    });
+  }
+
   // Get session statistics
   getSessionStats(sessionId: string): {
     totalSteps: number;
@@ -222,6 +298,8 @@ export class InterviewManager {
     currentWindow: number;
     completionRate: number;
     interviewComplete: boolean;
+    stepsWithNoResponse: number;
+    stepsWithSecondChance: number;
   } {
     const session = this.sessions.get(sessionId);
     if (!session) {
@@ -231,12 +309,20 @@ export class InterviewManager {
         currentStep: 0,
         currentWindow: 0,
         completionRate: 0,
-        interviewComplete: false
+        interviewComplete: false,
+        stepsWithNoResponse: 0,
+        stepsWithSecondChance: 0
       };
     }
 
     const completedSteps = Array.from(session.stepResponses.values())
       .filter(response => response.completed).length;
+    
+    const stepsWithNoResponse = Array.from(session.stepResponses.values())
+      .filter(response => !response.hasResponse).length;
+    
+    const stepsWithSecondChance = Array.from(session.stepResponses.values())
+      .filter(response => response.secondChanceUsed).length;
 
     return {
       totalSteps: session.totalSteps,
@@ -244,7 +330,9 @@ export class InterviewManager {
       currentStep: session.currentStep,
       currentWindow: session.currentContextWindow,
       completionRate: (completedSteps / session.totalSteps) * 100,
-      interviewComplete: session.interviewComplete
+      interviewComplete: session.interviewComplete,
+      stepsWithNoResponse,
+      stepsWithSecondChance
     };
   }
 
@@ -272,6 +360,78 @@ export class InterviewManager {
         console.log(`[InterviewManager] Cleaned up old session ${sessionId}`);
       }
     }
+  }
+
+  // Mark step as complete after second chance with no response
+  markStepCompleteAfterSecondChance(sessionId: string, stepId: number): boolean {
+    const session = this.sessions.get(sessionId);
+    if (!session) return false;
+
+    const response = session.stepResponses.get(stepId);
+    if (!response) return false;
+
+    response.completed = true;
+    response.secondChanceUsed = true;
+    session.lastActivity = new Date();
+
+    console.log(`[InterviewManager] Marked step ${stepId} as complete after second chance with no response`);
+    return true;
+  }
+
+  // Check if we need to request next 1/3 section
+  shouldRequestNextSection(sessionId: string): boolean {
+    const session = this.sessions.get(sessionId);
+    if (!session) return false;
+
+    const currentWindowSteps = this.getCurrentContextWindow(sessionId);
+    const allSteps = this.stepsCache.get(`${session.candidateId}_${session.requirementId}`) || [];
+    const stepsPerWindow = Math.ceil(allSteps.length / 3);
+    
+    // Check if current window is complete and there are more sections
+    const completedInWindow = currentWindowSteps.every(step => {
+      const response = session.stepResponses.get(step.step_id);
+      return response?.completed || false;
+    });
+
+    const hasMoreSections = session.currentContextWindow < 2;
+    const shouldRequest = completedInWindow && hasMoreSections;
+    
+    console.log(`[InterviewManager] Should request next section: ${shouldRequest} (window ${session.currentContextWindow + 1}/3, completed: ${completedInWindow})`);
+    return shouldRequest;
+  }
+
+  // Get current section info
+  getCurrentSectionInfo(sessionId: string): {
+    currentSection: number;
+    totalSections: number;
+    stepsInSection: number;
+    completedInSection: number;
+    sectionProgress: number;
+  } {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return {
+        currentSection: 0,
+        totalSections: 3,
+        stepsInSection: 0,
+        completedInSection: 0,
+        sectionProgress: 0
+      };
+    }
+
+    const currentWindowSteps = this.getCurrentContextWindow(sessionId);
+    const completedInSection = currentWindowSteps.filter(step => {
+      const response = session.stepResponses.get(step.step_id);
+      return response?.completed || false;
+    }).length;
+
+    return {
+      currentSection: session.currentContextWindow + 1,
+      totalSections: 3,
+      stepsInSection: currentWindowSteps.length,
+      completedInSection,
+      sectionProgress: currentWindowSteps.length > 0 ? (completedInSection / currentWindowSteps.length) * 100 : 0
+    };
   }
 
   // Private method to load steps from database

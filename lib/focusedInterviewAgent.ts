@@ -6,6 +6,7 @@ export interface AgentResponse {
   reason: string;
   stepCompleted: boolean;
   needsFollowUp: boolean;
+  needsSecondChance: boolean;
 }
 
 export class FocusedInterviewAgent {
@@ -27,7 +28,8 @@ export class FocusedInterviewAgent {
         shouldMove: false,
         reason: 'Session not found',
         stepCompleted: false,
-        needsFollowUp: false
+        needsFollowUp: false,
+        needsSecondChance: false
       };
     }
 
@@ -42,8 +44,63 @@ export class FocusedInterviewAgent {
       return this.analyzeCandidateResponse(sessionId, currentStep, stepResponse, candidateResponse);
     }
 
-    // If no response, ask the current step question
+    // If no response, check if we need to give second chance
+    if (stepResponse && interviewManager.needsSecondChance(sessionId, currentStep.step_id)) {
+      return this.giveSecondChance(sessionId, currentStep, stepResponse);
+    }
+
+    // If no response and second chance already used, move to next step
+    if (stepResponse && stepResponse.secondChanceUsed && !stepResponse.hasResponse) {
+      // Mark the step as complete since second chance was used
+      interviewManager.markStepCompleteAfterSecondChance(sessionId, currentStep.step_id);
+      interviewManager.moveToNextStep(sessionId);
+      
+      const nextStep = interviewManager.getCurrentStep(sessionId);
+      if (nextStep.step) {
+        return {
+          response: `I understand this topic might not be familiar to you. Let's move on to the next question: ${nextStep.step.text}`,
+          shouldMove: true,
+          reason: 'No response after second chance, moving to next step',
+          stepCompleted: true,
+          needsFollowUp: false,
+          needsSecondChance: false
+        };
+      } else {
+        return this.generateCompletionResponse(interviewManager.getSession(sessionId)!);
+      }
+    }
+
+    // Ask the current step question
     return this.askCurrentStep(sessionId, currentStep, stepResponse);
+  }
+
+  // Give second chance to candidate
+  private giveSecondChance(
+    sessionId: string,
+    step: InterviewStep,
+    stepResponse: StepResponse | null
+  ): AgentResponse {
+    interviewManager.useSecondChance(sessionId, step.step_id);
+    
+    // Generate more natural second chance messages
+    const secondChanceMessages = [
+      `I'd love to hear your thoughts on this. Could you share your experience with ${step.step_name.toLowerCase()}?`,
+      `Take your time with this one. What can you tell me about ${step.step_name.toLowerCase()}?`,
+      `This is an important area to explore. How would you approach ${step.step_name.toLowerCase()}?`,
+      `I'm curious about your perspective on this. Could you elaborate on ${step.step_name.toLowerCase()}?`,
+      `Let me rephrase that - what's your experience with ${step.step_name.toLowerCase()}?`
+    ];
+    
+    const randomMessage = secondChanceMessages[Math.floor(Math.random() * secondChanceMessages.length)];
+
+    return {
+      response: randomMessage,
+      shouldMove: false,
+      reason: 'Giving second chance for no response',
+      stepCompleted: false,
+      needsFollowUp: false,
+      needsSecondChance: true
+    };
   }
 
   // Analyze candidate response and decide next action
@@ -57,6 +114,8 @@ export class FocusedInterviewAgent {
     const quality = await this.assessResponseQuality(candidateResponse, step);
     interviewManager.recordResponse(sessionId, step.step_id, candidateResponse, quality);
 
+    console.log(`[FocusedInterviewAgent] Response quality: ${quality}, followUpCount: ${stepResponse?.followUpCount || 0}`);
+
     // Check if response is complete
     if (quality === 'complete') {
       // Move to next step
@@ -65,33 +124,35 @@ export class FocusedInterviewAgent {
       const nextStep = interviewManager.getCurrentStep(sessionId);
       if (nextStep.step) {
         return {
-          response: nextStep.step.text,
+          response: `Thank you for that answer. Now let's move to the next question: ${nextStep.step.text}`,
           shouldMove: true,
           reason: 'Response complete, moving to next step',
           stepCompleted: true,
-          needsFollowUp: false
+          needsFollowUp: false,
+          needsSecondChance: false
         };
       } else {
         return this.generateCompletionResponse(interviewManager.getSession(sessionId)!);
       }
     }
 
-    // Response is partial, check if we should follow up
+    // Response is partial, check if we should follow up (only once)
     if (stepResponse && interviewManager.needsFollowUp(sessionId, step.step_id)) {
       interviewManager.incrementFollowUp(sessionId, step.step_id);
       return this.generateFollowUp(sessionId, step, candidateResponse);
     }
 
-    // Max follow-ups reached, move to next step
+    // Max follow-ups reached or no follow-up needed, move to next step
     interviewManager.moveToNextStep(sessionId);
     const nextStep = interviewManager.getCurrentStep(sessionId);
     if (nextStep.step) {
       return {
-        response: nextStep.step.text,
+        response: `Thank you for your response. Let's continue with the next question: ${nextStep.step.text}`,
         shouldMove: true,
-        reason: 'Max follow-ups reached, moving to next step',
+        reason: 'Moving to next step after response',
         stepCompleted: false,
-        needsFollowUp: false
+        needsFollowUp: false,
+        needsSecondChance: false
       };
     } else {
       return this.generateCompletionResponse(interviewManager.getSession(sessionId)!);
@@ -110,11 +171,12 @@ export class FocusedInterviewAgent {
       const nextStep = interviewManager.getCurrentStep(sessionId);
       if (nextStep.step) {
         return {
-          response: nextStep.step.text,
+          response: `Let's continue with the next question: ${nextStep.step.text}`,
           shouldMove: true,
           reason: 'Step already answered, moving to next',
           stepCompleted: false,
-          needsFollowUp: false
+          needsFollowUp: false,
+          needsSecondChance: false
         };
       }
     }
@@ -124,7 +186,8 @@ export class FocusedInterviewAgent {
       shouldMove: false,
       reason: 'Asking current step question',
       stepCompleted: false,
-      needsFollowUp: false
+      needsFollowUp: false,
+      needsSecondChance: false
     };
   }
 
@@ -141,34 +204,40 @@ export class FocusedInterviewAgent {
         shouldMove: false,
         reason: 'Session not found',
         stepCompleted: false,
-        needsFollowUp: false
+        needsFollowUp: false,
+        needsSecondChance: false
       };
     }
 
     if (!this.apiKey) {
       return {
-        response: 'Thank you for that response. Could you provide more specific details about your experience?',
+        response: `Thank you for sharing that. Could you tell me more specifically about ${step.step_name.toLowerCase()}?`,
         shouldMove: false,
         reason: 'No API key, using fallback follow-up',
         stepCompleted: false,
-        needsFollowUp: true
+        needsFollowUp: true,
+        needsSecondChance: false
       };
     }
 
     try {
-      const followUpPrompt = `You are Sarah, a professional AI interviewer. 
+      const followUpPrompt = `You are Sarah, a professional AI interviewer conducting a structured screening interview.
+
+IMPORTANT: You must stay strictly on topic and focus only on completing the current interview question. Do not change subjects or ask unrelated questions.
 
 Current Step: ${step.step_name}
 Original Question: "${step.text}"
 Candidate's Response: "${candidateResponse}"
 
 Generate a follow-up question that:
-1. Acknowledges their response
-2. Asks for more specific details or examples
-3. Helps complete the information needed for this step
-4. Is conversational and professional (1-2 sentences)
+1. Acknowledges their response briefly
+2. Asks for more specific details related to the EXACT same topic as the original question
+3. Helps complete the information needed for this specific step
+4. Is conversational but professional (1-2 sentences)
+5. Stays focused on the original question topic
 
-Focus on getting a complete response for this step.`;
+DO NOT ask about different topics or change the subject. Focus only on getting a complete response for this specific step.
+DO NOT ask generic questions like "tell me more about your experience" - be specific to the question topic.`;
 
       const response = await fetch('https://api.lemonfox.ai/v1/chat/completions', {
         method: 'POST',
@@ -179,7 +248,7 @@ Focus on getting a complete response for this step.`;
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [
-            { role: 'system', content: 'You are Sarah, a professional AI interviewer.' },
+            { role: 'system', content: 'You are Sarah, a professional AI interviewer. Stay focused on the current question topic only and be specific.' },
             { role: 'user', content: followUpPrompt }
           ],
           max_tokens: 150,
@@ -192,20 +261,22 @@ Focus on getting a complete response for this step.`;
 
       const result = await response.json();
       return {
-        response: result.choices?.[0]?.message?.content || 'Could you provide more specific details?',
+        response: result.choices?.[0]?.message?.content || `Thank you for sharing that. Could you tell me more specifically about ${step.step_name.toLowerCase()}?`,
         shouldMove: false,
         reason: 'Follow-up question',
         stepCompleted: false,
-        needsFollowUp: true
+        needsFollowUp: true,
+        needsSecondChance: false
       };
     } catch (error) {
       console.error('[FocusedInterviewAgent] Error generating follow-up:', error);
       return {
-        response: 'Thank you for that response. Could you provide more specific details about your experience?',
+        response: `Thank you for sharing that. Could you tell me more specifically about ${step.step_name.toLowerCase()}?`,
         shouldMove: false,
         reason: 'Error, using fallback follow-up',
         stepCompleted: false,
-        needsFollowUp: true
+        needsFollowUp: true,
+        needsSecondChance: false
       };
     }
   }
@@ -216,8 +287,8 @@ Focus on getting a complete response for this step.`;
     step: InterviewStep
   ): Promise<'partial' | 'complete'> {
     if (!this.apiKey) {
-      // Simple heuristic fallback
-      return candidateResponse.length > 50 ? 'complete' : 'partial';
+      // More lenient heuristic fallback - if response has substantial content, consider it complete
+      return candidateResponse.length > 30 ? 'complete' : 'partial';
     }
 
     try {
@@ -227,8 +298,14 @@ Question: "${step.text}"
 Response: "${candidateResponse}"
 
 Evaluate if the response is:
-- COMPLETE: Provides sufficient detail, examples, and addresses the question fully
-- PARTIAL: Provides some information but lacks detail, examples, or doesn't fully address the question
+- COMPLETE: Provides a reasonable answer to the question, even if brief
+- PARTIAL: Provides very little information or doesn't address the question at all
+
+Guidelines:
+- If the candidate provides ANY relevant information about the topic, mark as COMPLETE
+- Only mark as PARTIAL if the response is completely off-topic or provides no useful information
+- Be lenient - this is a screening interview, not a detailed technical assessment
+- If the candidate mentions their experience, skills, or provides examples, mark as COMPLETE
 
 Respond with only "COMPLETE" or "PARTIAL".`;
 
@@ -241,7 +318,7 @@ Respond with only "COMPLETE" or "PARTIAL".`;
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [
-            { role: 'system', content: 'You are an expert HR interviewer assessing response quality.' },
+            { role: 'system', content: 'You are an expert HR interviewer. Be lenient in assessing responses - if the candidate provides any relevant information, mark as COMPLETE.' },
             { role: 'user', content: qualityPrompt }
           ],
           max_tokens: 10,
@@ -255,10 +332,13 @@ Respond with only "COMPLETE" or "PARTIAL".`;
       const result = await response.json();
       const assessment = result.choices?.[0]?.message?.content?.trim().toUpperCase();
       
+      console.log(`[FocusedInterviewAgent] Response quality assessment: ${assessment} for response: "${candidateResponse.substring(0, 100)}..."`);
+      
       return assessment === 'COMPLETE' ? 'complete' : 'partial';
     } catch (error) {
       console.error('[FocusedInterviewAgent] Error assessing response quality:', error);
-      return candidateResponse.length > 50 ? 'complete' : 'partial';
+      // More lenient fallback
+      return candidateResponse.length > 30 ? 'complete' : 'partial';
     }
   }
 
@@ -270,6 +350,9 @@ Respond with only "COMPLETE" or "PARTIAL".`;
 
 You've answered ${stats.completedSteps} out of ${stats.totalSteps} questions (${Math.round(stats.completionRate)}% completion rate).
 
+${stats.stepsWithNoResponse > 0 ? `Note: ${stats.stepsWithNoResponse} questions were not answered.` : ''}
+${stats.stepsWithSecondChance > 0 ? `Note: ${stats.stepsWithSecondChance} questions required a second attempt.` : ''}
+
 We'll review your responses and get back to you with next steps. Have a great day!`;
 
     return {
@@ -277,7 +360,8 @@ We'll review your responses and get back to you with next steps. Have a great da
       shouldMove: false,
       reason: 'Interview complete',
       stepCompleted: false,
-      needsFollowUp: false
+      needsFollowUp: false,
+      needsSecondChance: false
     };
   }
 
@@ -293,14 +377,38 @@ We'll review your responses and get back to you with next steps. Have a great da
 
     const currentWindowSteps = interviewManager.getCurrentContextWindow(sessionId);
     const incompleteSteps = interviewManager.getIncompleteSteps(sessionId);
+    const sectionInfo = interviewManager.getCurrentSectionInfo(sessionId);
 
     return {
       currentWindow: session.currentContextWindow,
       totalWindows: 3,
       stepsInWindow: currentWindowSteps.length,
       incompleteSteps: incompleteSteps.length,
-      windowProgress: ((currentWindowSteps.length - incompleteSteps.length) / currentWindowSteps.length) * 100
+      windowProgress: ((currentWindowSteps.length - incompleteSteps.length) / currentWindowSteps.length) * 100,
+      sectionInfo
     };
+  }
+
+  // Check if we should advance to next section
+  shouldAdvanceToNextSection(sessionId: string): boolean {
+    return interviewManager.shouldRequestNextSection(sessionId);
+  }
+
+  // Get section transition message
+  getSectionTransitionMessage(sessionId: string): string {
+    const sectionInfo = interviewManager.getCurrentSectionInfo(sessionId);
+    const nextSection = sectionInfo.currentSection + 1;
+    
+    if (nextSection <= 3) {
+      return `Great! We've completed section ${sectionInfo.currentSection} of 3. Let's move on to section ${nextSection} where we'll explore different aspects of your experience.`;
+    } else {
+      return "Excellent! We've completed all sections of the interview. Let me ask you a few final questions to wrap up.";
+    }
+  }
+
+  // Get all steps with status for UI indicators
+  getAllStepsWithStatus(sessionId: string) {
+    return interviewManager.getAllStepsWithStatus(sessionId);
   }
 }
 
