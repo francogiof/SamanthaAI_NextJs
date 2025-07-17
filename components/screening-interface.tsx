@@ -52,16 +52,14 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     areasOfConcern: []
   });
 
-  // Focused interview state
+  // Step-by-step interview state
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [contextWindow, setContextWindow] = useState(0);
   const [completionRate, setCompletionRate] = useState(0);
   const [stepCompleted, setStepCompleted] = useState(false);
   const [needsFollowUp, setNeedsFollowUp] = useState(false);
-  const [needsSecondChance, setNeedsSecondChance] = useState(false);
   const [allStepsWithStatus, setAllStepsWithStatus] = useState<any[]>([]);
   const [stepsWithNoResponse, setStepsWithNoResponse] = useState(0);
-  const [stepsWithSecondChance, setStepsWithSecondChance] = useState(0);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Speech functionality states
   const [isListening, setIsListening] = useState(false);
@@ -84,47 +82,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
   const recognitionRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
 
-  // Agent slides for presentation
-  const agentSlides: AgentSlide[] = [
-    {
-      id: 'intro',
-      type: 'introduction',
-      content: {
-        title: 'Welcome to Your Screening Interview',
-        company: 'TechCorp Solutions',
-        role: 'Machine Learning Engineer',
-        duration: '15-20 minutes'
-      }
-    },
-    {
-      id: 'requirements',
-      type: 'requirements',
-      content: {
-        title: 'Role Requirements',
-        skills: ['Python', 'TensorFlow', 'PyTorch', 'ML Ops'],
-        experience: '3+ years',
-        responsibilities: [
-          'Develop ML models',
-          'Collaborate with data team',
-          'Deploy to production'
-        ]
-      }
-    },
-    {
-      id: 'questions',
-      type: 'questions',
-      content: {
-        title: 'Skills Validation',
-        questions: [
-          'Can you describe your experience with Python for ML?',
-          'What ML frameworks have you worked with?',
-          'Tell me about a production ML model you deployed',
-          'How do you handle model versioning and deployment?'
-        ]
-      }
-    }
-  ];
+  // Remove agentSlides array and all slide navigation/rendering code
 
   useEffect(() => {
     console.log('[ScreeningInterface] Component mounted with props:', { requirementId, userId });
@@ -153,9 +113,12 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     }
     
     // Initialize screening and photo capture
-    initializeScreening();
+    if (!isInitialized) {
+      initializeScreening();
+      setIsInitialized(true);
+    }
     startPhotoCapture();
-  }, [requirementId, userId, previewStream, previewCameraOn, previewMicrophoneOn]);
+  }, [requirementId, userId, previewStream, previewCameraOn, previewMicrophoneOn, isInitialized]);
 
   useEffect(() => {
     console.log('[ScreeningInterface] Screening progress updated:', screeningProgress);
@@ -502,10 +465,10 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         setScreeningContext(data.screeningContext);
         setIsConnected(true);
         console.log('[ScreeningInterface] Screening context loaded:', data.screeningContext);
-        
-        // Initialize focused interview session
+
+        // Initialize step-by-step interview session
         try {
-          const sessionResponse = await fetch('/api/screening/focused-conversation', {
+          const sessionResponse = await fetch('/api/screening/step-by-step', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -520,26 +483,26 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           const sessionData = await sessionResponse.json();
           if (sessionData.success) {
             setSessionId(sessionData.sessionId);
+            sessionIdRef.current = sessionData.sessionId; // Store in ref
             if (sessionData.progress) {
               setTotalSteps(sessionData.progress.totalSteps);
               setCurrentStep(sessionData.progress.currentStep);
+              setScreeningProgress(sessionData.progress.completionRate);
             }
-            if (sessionData.contextWindowInfo) {
-              setContextWindow(sessionData.contextWindowInfo.currentWindow);
+            // Add the first agent message from the backend
+            if (sessionData.response) {
+              addAgentMessage(sessionData.response);
+              playAgentSpeech(sessionData.response);
             }
-            console.log('[ScreeningInterface] Focused session initialized:', sessionData);
+            // Update step status for indicators
+            if (sessionData.allStepsWithStatus) {
+              setAllStepsWithStatus(sessionData.allStepsWithStatus);
+            }
+            console.log('[ScreeningInterface] Step-by-step session initialized:', sessionData);
           }
         } catch (error) {
-          console.error('[ScreeningInterface] Error initializing focused session:', error);
+          console.error('[ScreeningInterface] Error initializing step-by-step session:', error);
         }
-        
-        // Start agent presentation
-        setTimeout(() => {
-          const welcomeMessage = 'Hello! I\'m Sarah, your screening interviewer. Welcome to TechCorp Solutions! How are you today?';
-          addAgentMessage(welcomeMessage);
-          playAgentSpeech(welcomeMessage);
-          setCurrentSlide(0);
-        }, 1000);
       } else {
         console.error('[ScreeningInterface] Failed to initialize screening:', data.error);
       }
@@ -575,7 +538,11 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     const messageText = text || candidateResponse;
     if (!messageText.trim()) return;
     
+    // Use session ID from ref if state is null
+    const currentSessionId = sessionId || sessionIdRef.current;
+    
     console.log('[ScreeningInterface] Sending candidate response:', messageText);
+    console.log('[ScreeningInterface] Current session ID:', currentSessionId);
     addCandidateMessage(messageText);
     
     // Clear input
@@ -587,16 +554,16 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     setAgentTyping(true);
     
     try {
-      // Get AI response using focused conversation API
-      const response = await fetch('/api/screening/focused-conversation', {
+      // Get AI response using step-by-step API
+      const response = await fetch('/api/screening/step-by-step', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           candidateMessage: messageText,
           candidateId: screeningContext?.candidate?.candidate_id,
           requirementId: parseInt(requirementId),
-          sessionId: sessionId,
-          isNewSession: !sessionId
+          sessionId: currentSessionId,
+          isNewSession: false // Never create new session here
         })
       });
 
@@ -609,19 +576,15 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           
           // Update session state
           setSessionId(data.sessionId);
+          sessionIdRef.current = data.sessionId; // Update ref
           
-          // Update progress and context window
+          // Update progress
           if (data.progress) {
             setCompletionRate(data.progress.completionRate);
             setCurrentStep(data.progress.currentStep);
             setTotalSteps(data.progress.totalSteps);
             setScreeningProgress(data.progress.completionRate);
             setStepsWithNoResponse(data.progress.stepsWithNoResponse);
-            setStepsWithSecondChance(data.progress.stepsWithSecondChance);
-          }
-          
-          if (data.contextWindowInfo) {
-            setContextWindow(data.contextWindowInfo.currentWindow);
           }
           
           // Update step status for indicators
@@ -633,32 +596,30 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           if (data.agentResult) {
             setStepCompleted(data.agentResult.stepCompleted);
             setNeedsFollowUp(data.agentResult.needsFollowUp);
-            setNeedsSecondChance(data.agentResult.needsSecondChance);
           }
           
           // Check if interview is complete
           if (data.interviewComplete) {
             setScreeningComplete(true);
-            console.log('[ScreeningInterface] Interview completed via focused system');
+            console.log('[ScreeningInterface] Interview completed via step-by-step system');
           }
         }, 1000);
       } else {
-        // Fallback to simple response
+        // If session failed, show error and don't create new session
+        console.error('[ScreeningInterface] Session failed:', data.error);
         setTimeout(() => {
-          const fallbackResponse = 'Thank you for that response. Could you tell me more about your experience?';
-          addAgentMessage(fallbackResponse);
-          playAgentSpeech(fallbackResponse);
-          setScreeningProgress(prev => Math.min(prev + 10, 100));
+          const errorMessage = 'Sorry, there was an issue with the interview session. Please refresh the page and try again.';
+          addAgentMessage(errorMessage);
+          playAgentSpeech(errorMessage);
         }, 1000);
       }
     } catch (error) {
       console.error('[ScreeningInterface] Error getting AI response:', error);
-      // Fallback response
+      // Only show error message, don't add fallback response
       setTimeout(() => {
-        const fallbackResponse = 'Thank you for sharing that. Let me ask you another question.';
-        addAgentMessage(fallbackResponse);
-        playAgentSpeech(fallbackResponse);
-        setScreeningProgress(prev => Math.min(prev + 10, 100));
+        const errorMessage = 'Sorry, there was an issue with the interview. Please try again.';
+        addAgentMessage(errorMessage);
+        playAgentSpeech(errorMessage);
       }, 1000);
     }
   };
@@ -758,15 +719,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     onComplete(screeningScore || 0, passesScreening || false);
   };
 
-  const nextSlide = () => {
-    console.log('[ScreeningInterface] Moving to next slide:', currentSlide + 1);
-    setCurrentSlide(prev => Math.min(prev + 1, agentSlides.length - 1));
-  };
+  // Remove all other hardcoded agent messages/slides
 
-  const prevSlide = () => {
-    console.log('[ScreeningInterface] Moving to previous slide:', currentSlide - 1);
-    setCurrentSlide(prev => Math.max(prev - 1, 0));
-  };
+  // Remove nextSlide and prevSlide functions
 
   const startCamera = async () => {
     try {
@@ -984,24 +939,8 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
               <span className="text-xs">📸 {photosTaken}/2 photos captured</span>
             </div>
           )}
-          {contextWindow >= 0 && (
-            <div className="flex items-center space-x-1 text-blue-400">
-              <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-              <span className="text-xs">📚 Section {contextWindow + 1}/3</span>
-            </div>
-          )}
-          {needsFollowUp && (
-            <div className="flex items-center space-x-1 text-orange-400">
-              <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
-              <span className="text-xs">🔄 Follow-up needed</span>
-            </div>
-          )}
-          {needsSecondChance && (
-            <div className="flex items-center space-x-1 text-red-400">
-              <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
-              <span className="text-xs">⚠️ Second chance given</span>
-            </div>
-          )}
+          {/* Removed contextWindow and needsFollowUp UI elements */}
+          {/* Removed needsSecondChance UI element */}
           {stepCompleted && (
             <div className="flex items-center space-x-1 text-green-400">
               <div className="w-2 h-2 bg-green-400 rounded-full"></div>
@@ -1012,12 +951,6 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
             <div className="flex items-center space-x-1 text-gray-400">
               <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
               <span className="text-xs">❌ {stepsWithNoResponse} unanswered</span>
-            </div>
-          )}
-          {stepsWithSecondChance > 0 && (
-            <div className="flex items-center space-x-1 text-purple-400">
-              <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-              <span className="text-xs">🔄 {stepsWithSecondChance} second chances</span>
             </div>
           )}
         </div>
@@ -1182,7 +1115,6 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
                         step.status === 'completed' ? 'bg-green-500 text-white completed' :
                         step.status === 'partial' ? 'bg-yellow-500 text-white partial' :
                         step.status === 'current' ? 'bg-blue-500 text-white current' :
-                        step.status === 'second-chance' ? 'bg-red-500 text-white second-chance' :
                         'bg-gray-500 text-white'
                       }`}
                       title={`${step.step_name}: ${step.status}`}
@@ -1203,10 +1135,6 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
                   <div className="flex items-center space-x-1">
                     <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                     <span className="text-gray-300">Current</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <span className="text-gray-300">Second Chance</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
@@ -1297,21 +1225,11 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       <div className="bg-gray-800 p-4 flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <button
-            onClick={prevSlide}
-            disabled={currentSlide === 0}
-            className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50"
+            onClick={endCall}
+            className="p-3 rounded-full bg-red-600 text-white hover:bg-red-700 transition-all duration-200"
+            title="End Call"
           >
-            Previous
-          </button>
-          <span className="text-white text-sm">
-            Slide {currentSlide + 1} of {agentSlides.length}
-          </span>
-          <button
-            onClick={nextSlide}
-            disabled={currentSlide === agentSlides.length - 1}
-            className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50"
-          >
-            Next
+            <Phone className="w-5 h-5" />
           </button>
         </div>
       </div>

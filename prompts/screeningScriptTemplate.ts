@@ -11,17 +11,17 @@ export interface ScreeningStepScript {
 
 export const SCREENING_SCRIPT_TEMPLATE: ScreeningStepScript[] = [
   {
-    id: 'good_manners',
+    id: 'cheers',
     step_name: 'Greeting and Welcome',
     type: 'semi-static',
     includes: ['candidate_info.full_name'],
-    text: "Hello [candidate_info.full_name], it's a pleasure to meet you. I hope you're having a great day! Thanks for being here today and for your interest in our company. I'm excited to learn more about your background.",
+    text: "Hello [candidate_info.full_name], it's a pleasure to meet you. Hows going on?",
   },
   {
-    id: 'introduction',
-    step_name: 'Interview Introduction',
+    id: 'good_manners',
+    step_name: 'Greeting and Welcome',
     type: 'static',
-    text: "I'll be conducting your screening interview today. It will take around 15–20 minutes. We'll cover your experience, skills, expectations, and give you a quick overview of the role. Feel free to ask questions at any point — I'll answer them if they're relevant or return us to the main path if needed.",
+    text: "I'm glad you're here today, and thanks for your interest in our company. I'm excited to learn more about your background. I'll be conducting your screening interview today. It will take around 15 minutes. We'll cover your experience, skills, expectations, and give you a quick overview of the role. Feel free to ask questions at any point. Are you ok with that?",
   },
   {
     id: 'context_brief',
@@ -29,19 +29,19 @@ export const SCREENING_SCRIPT_TEMPLATE: ScreeningStepScript[] = [
     type: 'semi-static',
     includes: ['context_role_info.project_description', 'context_role_info.ML_stack'],
     fallback_if_missing: 'Use [job_offer_info.role_mission_summary] if missing',
-    text: "Let me give you a bit of context. In this role, you'd be working on [context_role_info.project_description], using technologies such as [context_role_info.ML_stack]. You'd be collaborating with engineers to optimize recommendation models and deliver scalable, production-ready systems.",
+    text: "Perfect! Let me give you a bit of context. In this role, you'd be working on [context_role_info.project_description], using technologies such as [context_role_info.ML_stack]. You'd be collaborating with engineers to optimize recommendation models and deliver scalable, production-ready systems. Do you have any question so far?",
   },
   {
     id: 'explanation_about_screening',
     step_name: 'Screening Process Explanation',
     type: 'static',
-    text: "This is a structured screening interview designed to give every candidate a fair and consistent experience. There are 12 predefined questions. Please answer honestly and clearly — there's no need to be perfect. If at any point you're unsure, feel free to ask. You can also ask up to 3 questions of your own.",
+    text: "ok, continuing with the interview I have 10 predefined questions for you. Please answer honestly and clearly — there's no need to be perfect. Just trust on you, you can do it. Are you ready?.",
   },
   {
     id: 'candidate_introduction_petition',
     step_name: 'Candidate Self-Introduction Request',
     type: 'static',
-    text: "Before we begin, I'd love to hear more about you. Please introduce yourself. You can take around 50 seconds and include your current role, experience, and what interests you about this opportunity.",
+    text: "Perfect! I'd love to hear more about you in a short speech. Please introduce yourself. You can take around 1 minute and include your current role, experience, and what interests you about this opportunity.",
   },
   {
     id: 'Q1',
@@ -91,28 +91,7 @@ export const SCREENING_SCRIPT_TEMPLATE: ScreeningStepScript[] = [
     text: "How do you usually collaborate with cross-functional teams like data engineers or backend developers?",
   },
   {
-    id: 'Q7',
-    step_name: 'Technical Problem Solving',
-    type: 'semi-static',
-    focus: 'problem_solving',
-    text: "Can you describe a technical challenge you faced recently and how you solved it?",
-  },
-  {
     id: 'Q8',
-    step_name: 'Learning and Skill Development',
-    type: 'semi-static',
-    focus: 'learning_ability',
-    text: "How do you stay up to date with new ML tools and techniques? Can you name something new you've learned recently?",
-  },
-  {
-    id: 'Q9',
-    step_name: 'Technical Communication Skills',
-    type: 'semi-static',
-    focus: 'communication_skills',
-    text: "In your opinion, what makes technical communication effective in a team? Can you give an example from your experience?",
-  },
-  {
-    id: 'Q10',
     step_name: 'Role Motivation and Interest',
     type: 'semi-static',
     focus: 'motivation_for_this_role',
@@ -120,7 +99,7 @@ export const SCREENING_SCRIPT_TEMPLATE: ScreeningStepScript[] = [
     text: "Why are you interested in this specific role? What attracts you about [context_role_info.project_description]?",
   },
   {
-    id: 'Q11',
+    id: 'Q9',
     step_name: 'Availability and Start Date',
     type: 'semi-static',
     focus: 'availability',
@@ -128,7 +107,7 @@ export const SCREENING_SCRIPT_TEMPLATE: ScreeningStepScript[] = [
     text: "When would you be available to start if selected?",
   },
   {
-    id: 'Q12',
+    id: 'Q10',
     step_name: 'Salary Expectations Alignment',
     type: 'semi-static',
     focus: 'salary_alignment',
@@ -139,7 +118,7 @@ export const SCREENING_SCRIPT_TEMPLATE: ScreeningStepScript[] = [
     id: 'candidate_questions',
     step_name: 'Candidate Questions Opportunity',
     type: 'relational',
-    text: "You're welcome to ask up to 3 questions during this interview. I'll do my best to answer them quickly and then we'll return to the structured flow. Is there anything you'd like to ask at this moment?",
+    text: "We're finishing the interview. Is there anything you'd like to ask at this moment?",
   },
   {
     id: 'conclusion',
