@@ -548,25 +548,25 @@
   overflow: hidden;
   width: 8rem;
   height: 8rem;
-  border-radius: 42% 56% 72% 28% / 42% 42% 56% 48%;
-  background: radial-gradient(circle at 60% 40%, #60a5fa 60%, #6366f1 100%, #0ea5e9 120%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #60a5fa 25%, #f1f5f9 45%, #f472b6 70%, #fdba74 100%);
   background-size: 200% 200%;
   background-position: center;
   box-shadow: 0 0 32px 0 rgba(99,102,241,0.25), 0 0 0 0 rgba(99,102,241,0.15);
-  transition: box-shadow 0.3s, filter 0.3s;
+  transition: border-radius 0.7s cubic-bezier(0.77,0,0.175,1), box-shadow 0.3s, filter 0.3s, transform 0.3s;
 }
 
 .blob-animate {
-  animation: morph 3.75s linear infinite, blob-glow 1.5s ease-in-out infinite;
+  animation: morph 3.75s linear infinite, blob-glow 1.5s ease-in-out infinite, blob-vibrate 0.18s linear infinite;
 }
 
 @keyframes morph {
   0%, 100% {
-    border-radius: 42% 56% 72% 28% / 42% 42% 56% 48%;
+    border-radius: 50%;
     transform: scale(1) rotate(0deg);
   }
   20% {
-    border-radius: 50% 60% 60% 50% / 60% 50% 60% 50%;
+    border-radius: 54% 46% 60% 40% / 60% 50% 54% 46%;
     transform: scale(1.04) rotate(-2deg);
   }
   40% {
@@ -591,5 +591,23 @@
   50% {
     box-shadow: 0 0 64px 16px rgba(99,102,241,0.35), 0 0 32px 8px rgba(99,102,241,0.25);
     filter: brightness(1.08) saturate(1.2);
+  }
+}
+
+@keyframes blob-vibrate {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  20% {
+    transform: translate(-1px, 1px) scale(1.01);
+  }
+  40% {
+    transform: translate(1.5px, -1.5px) scale(0.99);
+  }
+  60% {
+    transform: translate(-1.5px, 1.5px) scale(1.01);
+  }
+  80% {
+    transform: translate(1px, -1px) scale(0.99);
   }
 } 
