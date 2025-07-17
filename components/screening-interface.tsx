@@ -963,20 +963,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           <div className="grid grid-cols-2 gap-4 h-full">
             {/* Agent Video */}
             <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative">
-              <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 transition-all duration-300 ${
-                isPlayingAudio ? 'avatar-talking' : 'bg-blue-600'
-              }`}>
-                <User className="w-12 h-12 text-white" />
-              </div>
-              {isPlayingAudio && (
-                <div className="audio-indicator">
-                  <div className="audio-dots">
-                    <div className="audio-dot"></div>
-                    <div className="audio-dot"></div>
-                    <div className="audio-dot"></div>
-                  </div>
-                </div>
-              )}
+              <div className={`blob mb-4 transition-all duration-300 ${isPlayingAudio ? 'blob-animate' : ''}`}></div>
               <h3 className="text-white font-semibold">Sarah (Interviewer)</h3>
               <p className="text-gray-400 text-sm">Screening Agent</p>
             </div>
