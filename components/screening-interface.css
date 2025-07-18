@@ -553,11 +553,11 @@
   background-size: 200% 200%;
   background-position: center;
   box-shadow: 0 0 32px 0 rgba(99,102,241,0.25), 0 0 0 0 rgba(99,102,241,0.15);
-  transition: border-radius 0.7s cubic-bezier(0.77,0,0.175,1), box-shadow 0.3s, filter 0.3s, transform 0.3s;
+  transition: border-radius 0.7s cubic-bezier(0.77,0,0.175,1), box-shadow 2s, filter 2s, transform 2s;
 }
 
 .blob-animate {
-  animation: morph 3.75s linear infinite, blob-glow 1.5s ease-in-out infinite, blob-vibrate 0.18s linear infinite;
+  animation: morph 3.75s linear infinite, blob-glow 1.5s ease-in-out infinite;
 }
 
 @keyframes morph {
@@ -591,23 +591,5 @@
   50% {
     box-shadow: 0 0 64px 16px rgba(99,102,241,0.35), 0 0 32px 8px rgba(99,102,241,0.25);
     filter: brightness(1.08) saturate(1.2);
-  }
-}
-
-@keyframes blob-vibrate {
-  0%, 100% {
-    transform: translate(0, 0) scale(1);
-  }
-  20% {
-    transform: translate(-1px, 1px) scale(1.01);
-  }
-  40% {
-    transform: translate(1.5px, -1.5px) scale(0.99);
-  }
-  60% {
-    transform: translate(-1.5px, 1.5px) scale(1.01);
-  }
-  80% {
-    transform: translate(1px, -1px) scale(0.99);
   }
 } 
