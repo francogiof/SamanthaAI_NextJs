@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { User, MessageCircle, Share2, Mic, MicOff, Video, VideoOff, Phone, Volume2, VolumeX } from 'lucide-react';
+import { User, MessageCircle, Share2, Mic, MicOff, Video, VideoOff, Phone, Volume2, VolumeX, MoreVertical } from 'lucide-react';
 import './screening-interface.css';
 
 interface ScreeningInterfaceProps {
@@ -934,6 +934,12 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     };
   }, [isPlayingAudio]);
 
+  // Add state for showing device dropdowns and device lists (empty for now, ready for real data)
+  const [showMicDropdown, setShowMicDropdown] = useState(false);
+  const [showCameraDropdown, setShowCameraDropdown] = useState(false);
+  const micDevices: string[] = [];
+  const cameraDevices: string[] = [];
+
   if (!isConnected) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -1216,17 +1222,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           {/* Input Area */}
           <div className="p-4 border-t border-gray-700 flex-shrink-0">
             <div className="flex space-x-2">
-              <button
-                onClick={isListening ? stopSpeechRecognition : startSpeechRecognition}
-                disabled={isMuted || screeningComplete || microphonePermission !== 'granted'}
-                className={`p-2 rounded-lg ${
-                  isListening 
-                    ? 'bg-red-600 text-white' 
-                    : 'bg-gray-700 text-white hover:bg-gray-600'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-              </button>
+              {/* Removed left mic button */}
               <input
                 ref={responseInputRef}
                 type="text"
@@ -1246,7 +1242,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
               </button>
             </div>
             <p className="text-xs text-gray-400 mt-2">
-              {isListening ? 'Listening... Click microphone to stop' : 'Click microphone to speak or type your response'}
+              {isListening ? 'Listening...' : 'Click microphone to speak or type your response'}
             </p>
           </div>
         </div>
@@ -1270,36 +1266,64 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         <div className="bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-full px-6 py-3 flex items-center space-x-4 shadow-2xl">
           <button
             onClick={toggleAudio}
-            className={`p-3 rounded-full transition-all duration-200 ${
-              !audioEnabled ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'
-            }`}
+            className={`p-3 rounded-full transition-all duration-200 ${!audioEnabled ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
             title={!audioEnabled ? 'Enable Audio' : 'Disable Audio'}
           >
             {!audioEnabled ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
           </button>
-          
-          <button
-            onClick={toggleMute}
-            className={`p-3 rounded-full transition-all duration-200 ${
-              isMuted ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'
-            }`}
-            title={isMuted ? 'Unmute' : 'Mute'}
-          >
-            {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-          </button>
-          
-          <button
-            onClick={toggleCamera}
-            className={`p-3 rounded-full transition-all duration-200 ${
-              !isCameraOn ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'
-            }`}
-            title={!isCameraOn ? 'Turn On Camera' : 'Turn Off Camera'}
-          >
-            {!isCameraOn ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-          </button>
-          
+          <div className="flex items-center relative group">
+            {/* 3-dots for mic device selection, styled as accessory button, behind and to the left, with rounded rectangle shape */}
+            <button
+              className="mr-0.5 p-3 bg-gray-900 rounded-lg border border-gray-800 shadow-md hover:bg-gray-800 focus:outline-none flex items-center justify-center group-hover:bg-gray-800"
+              style={{width: '56px', height: '48px', marginRight: '-16px', zIndex: 0, position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)'}} 
+              onClick={() => setShowMicDropdown((v) => !v)}
+              tabIndex={0}
+            >
+              <MoreVertical className="w-5 h-5 text-gray-400 mx-auto" />
+            </button>
+            <button
+              onClick={isListening ? stopSpeechRecognition : startSpeechRecognition}
+              className={`p-3 rounded-full transition-all duration-200 ${isListening ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
+              title={isListening ? 'Turn Off Microphone' : 'Turn On Microphone'}
+              style={{position: 'relative', zIndex: 1, marginLeft: '40px'}}
+            >
+              {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            </button>
+            {showMicDropdown && micDevices.length > 0 && (
+              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-800 border border-gray-600 rounded shadow-lg z-50 min-w-[160px]">
+                {micDevices.map((dev, i) => (
+                  <div key={dev} className="px-4 py-2 text-white hover:bg-gray-700 cursor-pointer text-sm border-b border-gray-700 last:border-b-0">{dev}</div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center relative group">
+            {/* 3-dots for camera device selection, styled as accessory button, behind and to the left, with rounded rectangle shape */}
+            <button
+              className="mr-0.5 p-3 bg-gray-900 rounded-lg border border-gray-800 shadow-md hover:bg-gray-800 focus:outline-none flex items-center justify-center group-hover:bg-gray-800"
+              style={{width: '56px', height: '48px', marginRight: '-16px', zIndex: 0, position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)'}}
+              onClick={() => setShowCameraDropdown((v) => !v)}
+              tabIndex={0}
+            >
+              <MoreVertical className="w-5 h-5 text-gray-400 mx-auto" />
+            </button>
+            <button
+              onClick={toggleCamera}
+              className={`p-3 rounded-full transition-all duration-200 ${!isCameraOn ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
+              title={!isCameraOn ? 'Turn On Camera' : 'Turn Off Camera'}
+              style={{position: 'relative', zIndex: 1, marginLeft: '40px'}}
+            >
+              {!isCameraOn ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+            </button>
+            {showCameraDropdown && cameraDevices.length > 0 && (
+              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-800 border border-gray-600 rounded shadow-lg z-50 min-w-[160px]">
+                {cameraDevices.map((dev, i) => (
+                  <div key={dev} className="px-4 py-2 text-white hover:bg-gray-700 cursor-pointer text-sm border-b border-gray-700 last:border-b-0">{dev}</div>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="w-px h-8 bg-gray-600"></div>
-          
           <button 
             onClick={endCall}
             className="p-3 rounded-full bg-red-600 text-white hover:bg-red-700 transition-all duration-200"
