@@ -941,6 +941,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const [showCameraDropdown, setShowCameraDropdown] = useState(false);
   const micDevices: MediaDeviceInfo[] = previewMicDevices;
   const cameraDevices: MediaDeviceInfo[] = previewCameraDevices;
+  const [showMicAssist, setShowMicAssist] = useState(true); // Show mic assist arrow/tooltip initially
 
   if (!isConnected) {
     return (
@@ -1285,11 +1286,23 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
             </button>
             <button
               onClick={isListening ? stopSpeechRecognition : startSpeechRecognition}
-              className={`p-3 rounded-full transition-all duration-200 ${isListening ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
+              className={`p-3 rounded-full transition-all duration-200 ${isListening ? 'bg-green-600 text-white shadow-green-glow' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
               title={isListening ? 'Turn Off Microphone' : 'Turn On Microphone'}
               style={{position: 'relative', zIndex: 1, marginLeft: '40px'}}
             >
-              {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              {isListening ? <Mic className="w-5 h-5 animate-pulse" /> : <MicOff className="w-5 h-5" />}
+              {/* Mic assist arrow/tooltip */}
+              {showMicAssist && (
+                <div className="absolute -top-52 left-1/2 -translate-x-1/2 flex flex-col items-center z-50">
+                  <div className="bg-gray-900 text-white px-3 py-2 rounded shadow-lg text-xs font-semibold mb-3 border border-green-500">
+                    Turn on the microphone to start answering.<br/>You only need to do this once.
+                  </div>
+                  <svg className="animate-bounce-slow" width="24" height="16" viewBox="0 0 24 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 16L0 0H24L12 16Z" fill="#22c55e" />
+                    <path d="M12 16L0 0H24L12 16Z" fill="#22c55e" fillOpacity="0.5" />
+                  </svg>
+                </div>
+              )}
             </button>
             {showMicDropdown && micDevices.length > 0 && (
               <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-800 border border-gray-600 rounded shadow-lg z-50 min-w-[160px]">
