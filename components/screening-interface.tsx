@@ -70,6 +70,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const [speakingTimer, setSpeakingTimer] = useState<number | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [autoMicrophoneEnabled, setAutoMicrophoneEnabled] = useState(false);
+  const blobMorphTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Photo capture for transparency
   const [photosTaken, setPhotosTaken] = useState(0);
@@ -83,6 +84,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const recognitionRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const firstAgentMessageAdded = useRef(false);
 
   // Remove agentSlides array and all slide navigation/rendering code
 
@@ -401,8 +403,11 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     
     try {
       console.log('[ScreeningInterface] Generating speech for:', text);
-      setIsPlayingAudio(true);
-
+      // Instead of setting isPlayingAudio immediately, set a timer for 1.5s
+      if (blobMorphTimeoutRef.current) {
+        clearTimeout(blobMorphTimeoutRef.current);
+      }
+      setIsPlayingAudio(false); // Always reset first
       const response = await fetch('/api/speech/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -417,6 +422,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           audioRef.current.src = audioUrl;
           audioRef.current.onended = () => {
             setIsPlayingAudio(false);
+            if (blobMorphTimeoutRef.current) {
+              clearTimeout(blobMorphTimeoutRef.current);
+            }
             URL.revokeObjectURL(audioUrl);
             // Start countdown after agent finishes speaking (reduced to 1 second)
             setTimeout(() => {
@@ -425,21 +433,31 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
               }
             }, 1000);
           };
+          // Start morphing 1.5s after TTS starts
+          blobMorphTimeoutRef.current = setTimeout(() => {
+            setIsPlayingAudio(true);
+          }, 300);
           await audioRef.current.play();
         }
       } else {
         console.error('[ScreeningInterface] TTS failed:', response.status);
         setIsPlayingAudio(false);
+        if (blobMorphTimeoutRef.current) {
+          clearTimeout(blobMorphTimeoutRef.current);
+        }
         // Start countdown even if TTS fails (reduced to 1 second)
         setTimeout(() => {
           if (!screeningComplete && !isListening && microphonePermission === 'granted') {
             startAutoRecordingCountdown();
           }
-        }, 1000);
+        }, 3000);
       }
     } catch (error) {
       console.error('[ScreeningInterface] Error playing speech:', error);
       setIsPlayingAudio(false);
+      if (blobMorphTimeoutRef.current) {
+        clearTimeout(blobMorphTimeoutRef.current);
+      }
       // Start countdown even if TTS fails (reduced to 1 second)
       setTimeout(() => {
         if (!screeningComplete && !isListening && microphonePermission === 'granted') {
@@ -489,10 +507,11 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
               setCurrentStep(sessionData.progress.currentStep);
               setScreeningProgress(sessionData.progress.completionRate);
             }
-            // Add the first agent message from the backend
-            if (sessionData.response) {
+            // Only add the first agent message if there are no messages yet
+            if (sessionData.response && !firstAgentMessageAdded.current) {
               addAgentMessage(sessionData.response);
               playAgentSpeech(sessionData.response);
+              firstAgentMessageAdded.current = true;
             }
             // Update step status for indicators
             if (sessionData.allStepsWithStatus) {
@@ -890,6 +909,31 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     }
   };
 
+  const [isBlobResetting, setIsBlobResetting] = useState(false);
+  const [shouldMorphBlob, setShouldMorphBlob] = useState(false);
+
+  // Soft morph-to-circle transition for blob
+  useEffect(() => {
+    let startTimeout: NodeJS.Timeout | null = null;
+    let finishTimeout: NodeJS.Timeout | null = null;
+    if (isPlayingAudio) {
+      // Delay morph start by 100ms
+      startTimeout = setTimeout(() => setShouldMorphBlob(true), 0);
+      setIsBlobResetting(false);
+    } else {
+      // Keep morph for 100ms, then start soft reset
+      finishTimeout = setTimeout(() => {
+        setShouldMorphBlob(false);
+        setIsBlobResetting(true);
+        setTimeout(() => setIsBlobResetting(false), 2000); // 2s soft finish
+      }, 100);
+    }
+    return () => {
+      if (startTimeout) clearTimeout(startTimeout);
+      if (finishTimeout) clearTimeout(finishTimeout);
+    };
+  }, [isPlayingAudio]);
+
   if (!isConnected) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -963,7 +1007,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           <div className="grid grid-cols-2 gap-4 h-full">
             {/* Agent Video */}
             <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative">
-              <div className={`blob mb-4 transition-all duration-300 ${isPlayingAudio ? 'blob-animate' : ''}`}></div>
+              <div className={`blob mb-4 transition-all duration-[2000ms] ${shouldMorphBlob ? 'blob-animate' : ''} ${isBlobResetting ? 'blob-resetting' : ''}`}></div>
               <h3 className="text-white font-semibold">Sarah (Interviewer)</h3>
               <p className="text-gray-400 text-sm">Screening Agent</p>
             </div>
