@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { User, MessageCircle, Share2, Mic, MicOff, Video, VideoOff, Phone, Volume2, VolumeX, MoreVertical, Clock } from 'lucide-react';
+import { User, MessageCircle, Share2, Mic, MicOff, Video, VideoOff, Phone, Volume2, VolumeX, MoreVertical, Clock, PanelRightOpen, PanelRightClose } from 'lucide-react';
 import './screening-interface.css';
+import { Card } from "./ui/card";
 
 interface ScreeningInterfaceProps {
   requirementId: string;
@@ -985,6 +986,8 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     isListening ? stopSpeechRecognition() : startSpeechRecognition();
   };
 
+  const [showSidebar, setShowSidebar] = useState(true); // Sidebar visibility
+
   if (!isConnected) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -1057,9 +1060,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex relative">
         {/* Video Area */}
-        <div className="flex-1 p-4 video-area">
+        <div className={`flex-1 p-4 video-area transition-all duration-500 ${showSidebar ? '' : '!pr-0'}`}>
           <div className="grid grid-cols-2 gap-4 h-full">
             {/* Agent Video */}
             <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative">
@@ -1172,106 +1175,115 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           </div>
         </div>
 
-        {/* Chat Area */}
-        <div className="w-96 bg-gray-800 flex flex-col">
-          {/* Chat Header */}
-          <div className="p-4 border-b border-gray-700 flex-shrink-0">
-            <h3 className="text-white font-semibold flex items-center">
-              <MessageCircle className="w-5 h-5 mr-2" />
-              Interview Chat
-            </h3>
-            <div className="mt-2">
-              <div className="w-full bg-gray-700 rounded-full h-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${screeningProgress}%` }}
-                ></div>
+        {/* Slideable Chat Area */}
+        <div
+          className={`fixed top-0 right-0 h-full z-40 transition-transform duration-500 ease-in-out ${showSidebar ? 'translate-x-0' : 'translate-x-full'} w-96`}
+          style={{ boxShadow: showSidebar ? 'rgba(0,0,0,0.4) -8px 0 24px' : 'none' }}
+        >
+          <Card className="flex flex-col h-full rounded-xl border border-gray-700 shadow-xl bg-gray-900/95 p-0">
+            {/* Chat Header */}
+            <div className="p-4 border-b border-gray-700 flex-shrink-0">
+              <h3 className="text-white font-semibold flex items-center">
+                <MessageCircle className="w-5 h-5 mr-2" />
+                Interview Chat
+              </h3>
+              <div className="mt-2">
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${screeningProgress}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Progress: {screeningProgress}%</p>
               </div>
-              <p className="text-xs text-gray-400 mt-1">Progress: {screeningProgress}%</p>
-            </div>
-            
-            {/* Step Completion Indicators */}
-            {allStepsWithStatus.length > 0 && (
-              <div className="mt-3">
-                <p className="text-xs text-gray-400 mb-2">Question Status:</p>
-                <div className="grid grid-cols-5 gap-1">
-                  {allStepsWithStatus.map((step, index) => (
-                    <div
-                      key={step.step_id}
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold step-indicator ${
-                        step.status === 'completed' ? 'bg-green-500 text-white completed' :
-                        step.status === 'partial' ? 'bg-yellow-500 text-white partial' :
-                        step.status === 'current' ? 'bg-blue-500 text-white current' :
-                        'bg-gray-500 text-white'
-                      }`}
-                      title={`${step.step_name}: ${step.status}`}
-                    >
-                      {index + 1}
+              {/* Step Completion Indicators */}
+              {allStepsWithStatus.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-400 mb-2">Question Status:</p>
+                  <div className="grid grid-cols-5 gap-1">
+                    {allStepsWithStatus.map((step, index) => (
+                      <div
+                        key={step.step_id}
+                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold step-indicator ${
+                          step.status === 'completed' ? 'bg-green-500 text-white completed' :
+                          step.status === 'partial' ? 'bg-yellow-500 text-white partial' :
+                          step.status === 'current' ? 'bg-blue-500 text-white current' :
+                          'bg-gray-500 text-white'
+                        }`}
+                        title={`${step.step_name}: ${step.status}`}
+                      >
+                        {index + 1}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                    <div className="flex items-center space-x-1">
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <span className="text-gray-300">Completed</span>
                     </div>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-2 mt-2 text-xs">
-                  <div className="flex items-center space-x-1">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span className="text-gray-300">Completed</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                    <span className="text-gray-300">Partial</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                    <span className="text-gray-300">Current</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
-                    <span className="text-gray-300">No Response</span>
+                    <div className="flex items-center space-x-1">
+                      <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                      <span className="text-gray-300">Partial</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                      <span className="text-gray-300">Current</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+                      <span className="text-gray-300">No Response</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 max-h-96">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.sender === 'agent' ? 'justify-start' : 'justify-end'}`}
-              >
+              )}
+            </div>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 max-h-96">
+              {messages.map((message) => (
                 <div
-                  className={`max-w-xs p-3 rounded-lg ${
-                    message.sender === 'agent'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-700 text-white'
-                  }`}
+                  key={message.id}
+                  className={`flex ${message.sender === 'agent' ? 'justify-start' : 'justify-end'}`}
                 >
-                  <p className="text-sm break-words">{message.content}</p>
-                  <p className="text-xs opacity-70 mt-1">
-                    {message.timestamp.toLocaleTimeString()}
-                  </p>
-                </div>
-              </div>
-            ))}
-            
-            {agentTyping && (
-              <div className="flex justify-start">
-                <div className="bg-blue-600 text-white p-3 rounded-lg">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div
+                    className={`max-w-xs p-3 rounded-lg ${
+                      message.sender === 'agent'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-700 text-white'
+                    }`}
+                  >
+                    <p className="text-sm break-words">{message.content}</p>
+                    <p className="text-xs opacity-70 mt-1">
+                      {message.timestamp.toLocaleTimeString()}
+                    </p>
                   </div>
                 </div>
-              </div>
-            )}
-            
-            <div ref={chatEndRef} />
-          </div>
-
-          {/* Input Area */}
-          {/* Removed input area for typing responses, as the interview is conversational (voice only) */}
+              ))}
+              {agentTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-blue-600 text-white p-3 rounded-lg">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            {/* Input Area */}
+            {/* Removed input area for typing responses, as the interview is conversational (voice only) */}
+          </Card>
         </div>
+        {/* Sidebar Toggle Button */}
+        <button
+          className="fixed bottom-8 right-8 z-50 bg-gray-800 hover:bg-gray-700 text-white rounded-full p-4 shadow-lg transition-all duration-200 flex items-center justify-center focus:outline-none"
+          style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.25)' }}
+          onClick={() => setShowSidebar((v) => !v)}
+          aria-label={showSidebar ? 'Hide chat panel' : 'Show chat panel'}
+        >
+          {showSidebar ? <PanelRightClose className="w-6 h-6" /> : <PanelRightOpen className="w-6 h-6" />}
+        </button>
       </div>
 
       {/* Bottom Controls */}
