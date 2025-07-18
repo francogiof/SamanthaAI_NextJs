@@ -61,6 +61,8 @@ export default function CandidateApplicationSubdashboard() {
 	const [previewVideoRef, setPreviewVideoRef] = useState<HTMLVideoElement | null>(null);
 	const [previewAudioLevel, setPreviewAudioLevel] = useState(0);
 	const [previewPermissionsGranted, setPreviewPermissionsGranted] = useState(false);
+	const [previewMicDevices, setPreviewMicDevices] = useState<MediaDeviceInfo[]>([]);
+	const [previewCameraDevices, setPreviewCameraDevices] = useState<MediaDeviceInfo[]>([]);
 
 	// Get requirementId from URL params
 	const requirementId = typeof window !== 'undefined' ? window.location.pathname.split('/').pop() || '' : '';
@@ -194,6 +196,11 @@ export default function CandidateApplicationSubdashboard() {
 			
 			updateAudioLevel();
 			
+			// After setting up stream and preview, enumerate devices
+			const devices = await navigator.mediaDevices.enumerateDevices();
+			setPreviewMicDevices(devices.filter(d => d.kind === 'audioinput'));
+			setPreviewCameraDevices(devices.filter(d => d.kind === 'videoinput'));
+			
 		} catch (error) {
 			console.error('[ApplicationPage] ❌ Preview permissions error:', error);
 			setPreviewPermissionsGranted(false);
@@ -268,6 +275,8 @@ export default function CandidateApplicationSubdashboard() {
 				previewStream={previewStream}
 				previewCameraOn={previewCameraOn}
 				previewMicrophoneOn={previewMicrophoneOn}
+				previewMicDevices={previewMicDevices}
+				previewCameraDevices={previewCameraDevices}
 			/>
 		);
 	}

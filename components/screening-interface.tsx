@@ -11,6 +11,8 @@ interface ScreeningInterfaceProps {
   previewStream?: MediaStream | null;
   previewCameraOn?: boolean;
   previewMicrophoneOn?: boolean;
+  previewMicDevices?: MediaDeviceInfo[];
+  previewCameraDevices?: MediaDeviceInfo[];
 }
 
 interface Message {
@@ -26,7 +28,7 @@ interface AgentSlide {
   content: any;
 }
 
-export default function ScreeningInterface({ requirementId, userId, onComplete, previewStream, previewCameraOn, previewMicrophoneOn }: ScreeningInterfaceProps) {
+export default function ScreeningInterface({ requirementId, userId, onComplete, previewStream, previewCameraOn, previewMicrophoneOn, previewMicDevices = [], previewCameraDevices = [] }: ScreeningInterfaceProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
@@ -937,8 +939,8 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   // Add state for showing device dropdowns and device lists (empty for now, ready for real data)
   const [showMicDropdown, setShowMicDropdown] = useState(false);
   const [showCameraDropdown, setShowCameraDropdown] = useState(false);
-  const micDevices: string[] = [];
-  const cameraDevices: string[] = [];
+  const micDevices: MediaDeviceInfo[] = previewMicDevices;
+  const cameraDevices: MediaDeviceInfo[] = previewCameraDevices;
 
   if (!isConnected) {
     return (
@@ -1291,8 +1293,8 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
             </button>
             {showMicDropdown && micDevices.length > 0 && (
               <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-800 border border-gray-600 rounded shadow-lg z-50 min-w-[160px]">
-                {micDevices.map((dev, i) => (
-                  <div key={dev} className="px-4 py-2 text-white hover:bg-gray-700 cursor-pointer text-sm border-b border-gray-700 last:border-b-0">{dev}</div>
+                {micDevices.map((dev) => (
+                  <div key={dev.deviceId} className="px-4 py-2 text-white hover:bg-gray-700 cursor-pointer text-sm border-b border-gray-700 last:border-b-0">{dev.label || 'Microphone'}</div>
                 ))}
               </div>
             )}
@@ -1317,8 +1319,8 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
             </button>
             {showCameraDropdown && cameraDevices.length > 0 && (
               <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-800 border border-gray-600 rounded shadow-lg z-50 min-w-[160px]">
-                {cameraDevices.map((dev, i) => (
-                  <div key={dev} className="px-4 py-2 text-white hover:bg-gray-700 cursor-pointer text-sm border-b border-gray-700 last:border-b-0">{dev}</div>
+                {cameraDevices.map((dev) => (
+                  <div key={dev.deviceId} className="px-4 py-2 text-white hover:bg-gray-700 cursor-pointer text-sm border-b border-gray-700 last:border-b-0">{dev.label || 'Camera'}</div>
                 ))}
               </div>
             )}
