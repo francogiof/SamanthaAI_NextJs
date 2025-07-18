@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { User, MessageCircle, Share2, Mic, MicOff, Video, VideoOff, Phone, Volume2, VolumeX, MoreVertical } from 'lucide-react';
+import { User, MessageCircle, Share2, Mic, MicOff, Video, VideoOff, Phone, Volume2, VolumeX, MoreVertical, Clock } from 'lucide-react';
 import './screening-interface.css';
 
 interface ScreeningInterfaceProps {
@@ -399,6 +399,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         if (!screeningComplete && !isListening && microphonePermission === 'granted') {
           startAutoRecordingCountdown();
         }
+        // Show vignette after first TTS
+        if (!firstAgentTTSFinished) setShowMicAssist(true);
+        setFirstAgentTTSFinished(true);
       }, 1000);
       return;
     }
@@ -433,6 +436,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
               if (!screeningComplete && !isListening && microphonePermission === 'granted') {
                 startAutoRecordingCountdown();
               }
+              // Show vignette after first TTS
+              if (!firstAgentTTSFinished) setShowMicAssist(true);
+              setFirstAgentTTSFinished(true);
             }, 1000);
           };
           // Start morphing 1.5s after TTS starts
@@ -452,6 +458,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           if (!screeningComplete && !isListening && microphonePermission === 'granted') {
             startAutoRecordingCountdown();
           }
+          // Show vignette after first TTS
+          if (!firstAgentTTSFinished) setShowMicAssist(true);
+          setFirstAgentTTSFinished(true);
         }, 3000);
       }
     } catch (error) {
@@ -465,6 +474,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         if (!screeningComplete && !isListening && microphonePermission === 'granted') {
           startAutoRecordingCountdown();
         }
+        // Show vignette after first TTS
+        if (!firstAgentTTSFinished) setShowMicAssist(true);
+        setFirstAgentTTSFinished(true);
       }, 1000);
     }
   };
@@ -941,7 +953,37 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const [showCameraDropdown, setShowCameraDropdown] = useState(false);
   const micDevices: MediaDeviceInfo[] = previewMicDevices;
   const cameraDevices: MediaDeviceInfo[] = previewCameraDevices;
-  const [showMicAssist, setShowMicAssist] = useState(true); // Show mic assist arrow/tooltip initially
+  const [showMicAssist, setShowMicAssist] = useState(false); // Only show after first agent TTS
+  const [micAssistDismissed, setMicAssistDismissed] = useState(false); // Hide after mic button pressed
+  const [timer, setTimer] = useState(15 * 60); // 15 minutes in seconds
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Interview timer logic
+  useEffect(() => {
+    if (isConnected) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setTimer((prev) => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current!);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    }
+  }, [isConnected]);
+
+  // Show vignette only after first agent TTS
+  const [firstAgentTTSFinished, setFirstAgentTTSFinished] = useState(false);
+  const handleMicButton = () => {
+    if (!micAssistDismissed) {
+      setShowMicAssist(false);
+      setMicAssistDismissed(true);
+    }
+    isListening ? stopSpeechRecognition() : startSpeechRecognition();
+  };
 
   if (!isConnected) {
     return (
@@ -960,7 +1002,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       <audio ref={audioRef} style={{ display: 'none' }} />
       
       {/* Header */}
-      <div className="bg-gray-800 text-white p-4 flex items-center justify-between">
+      <div className="bg-gray-800 text-white p-4 flex items-center justify-between relative">
         <div className="flex items-center space-x-4">
           <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
             <User className="w-6 h-6" />
@@ -972,7 +1014,12 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
             </p>
           </div>
         </div>
-        
+        {/* Timer Centered */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 bg-gray-800 bg-opacity-80 px-4 py-2 rounded-full shadow text-white font-semibold text-lg" style={{minWidth:'160px', justifyContent:'center'}}>
+          <Clock className="w-5 h-5 text-white" />
+          <span>{Math.floor(timer / 60).toString().padStart(2, '0')}:{(timer % 60).toString().padStart(2, '0')}</span>
+          <span className="text-xs ml-2">min</span>
+        </div>
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-300">
             {screeningComplete && (
@@ -1223,31 +1270,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           </div>
 
           {/* Input Area */}
-          <div className="p-4 border-t border-gray-700 flex-shrink-0">
-            <div className="flex space-x-2">
-              {/* Removed left mic button */}
-              <input
-                ref={responseInputRef}
-                type="text"
-                value={candidateResponse}
-                onChange={(e) => setCandidateResponse(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Type your response..."
-                className="flex-1 bg-gray-700 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={screeningComplete}
-              />
-              <button
-                onClick={() => handleSendMessage()}
-                disabled={!candidateResponse.trim() || screeningComplete}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Send
-              </button>
-            </div>
-            <p className="text-xs text-gray-400 mt-2">
-              {isListening ? 'Listening...' : 'Click microphone to speak or type your response'}
-            </p>
-          </div>
+          {/* Removed input area for typing responses, as the interview is conversational (voice only) */}
         </div>
       </div>
 
@@ -1285,12 +1308,14 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
               <MoreVertical className="w-5 h-5 text-gray-400" style={{marginLeft: '-9px'}} />
             </button>
             <button
-              onClick={isListening ? stopSpeechRecognition : startSpeechRecognition}
-              className={`p-3 rounded-full transition-all duration-200 ${isListening ? 'bg-green-600 text-white shadow-green-glow' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
+              onClick={handleMicButton}
+              className={`p-3 rounded-full transition-all duration-200 border-2 ${isListening ? 'border-[#22c55e]' : 'border-gray-700'} bg-gray-700 text-white hover:bg-gray-600`}
               title={isListening ? 'Turn Off Microphone' : 'Turn On Microphone'}
               style={{position: 'relative', zIndex: 1, marginLeft: '40px'}}
             >
-              {isListening ? <Mic className="w-5 h-5 animate-pulse" /> : <MicOff className="w-5 h-5" />}
+              {isListening
+                ? <Mic className="w-5 h-5" style={{ color: '#22c55e' }} />
+                : <MicOff className="w-5 h-5 text-white" />}
               {/* Mic assist arrow/tooltip */}
               {showMicAssist && (
                 <div className="absolute -top-52 left-1/2 -translate-x-1/2 flex flex-col items-center z-50">
