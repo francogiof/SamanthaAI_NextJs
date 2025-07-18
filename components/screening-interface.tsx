@@ -1274,12 +1274,12 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           <div className="flex items-center relative group">
             {/* 3-dots for mic device selection, styled as accessory button, behind and to the left, with rounded rectangle shape */}
             <button
-              className="mr-0.5 p-3 bg-gray-900 rounded-lg border border-gray-800 shadow-md hover:bg-gray-800 focus:outline-none flex items-center justify-center group-hover:bg-gray-800"
-              style={{width: '56px', height: '48px', marginRight: '-16px', zIndex: 0, position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)'}} 
+              className="mr-0.5 p-3 bg-gray-900 rounded-full border border-gray-800 shadow-md hover:bg-gray-800 focus:outline-none flex items-center justify-center group-hover:bg-gray-800"
+              style={{width: '70px', height: '48px', marginRight: '-16px', zIndex: 0, position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)'}} 
               onClick={() => setShowMicDropdown((v) => !v)}
               tabIndex={0}
             >
-              <MoreVertical className="w-5 h-5 text-gray-400 mx-auto" />
+              <MoreVertical className="w-5 h-5 text-gray-400" style={{marginLeft: '-9px'}} />
             </button>
             <button
               onClick={isListening ? stopSpeechRecognition : startSpeechRecognition}
@@ -1300,12 +1300,12 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           <div className="flex items-center relative group">
             {/* 3-dots for camera device selection, styled as accessory button, behind and to the left, with rounded rectangle shape */}
             <button
-              className="mr-0.5 p-3 bg-gray-900 rounded-lg border border-gray-800 shadow-md hover:bg-gray-800 focus:outline-none flex items-center justify-center group-hover:bg-gray-800"
-              style={{width: '56px', height: '48px', marginRight: '-16px', zIndex: 0, position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)'}}
+              className="mr-0.5 p-3 bg-gray-900 rounded-full border border-gray-800 shadow-md hover:bg-gray-800 focus:outline-none flex items-center justify-center group-hover:bg-gray-800"
+              style={{width: '70px', height: '48px', marginRight: '-16px', zIndex: 0, position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)'}}
               onClick={() => setShowCameraDropdown((v) => !v)}
               tabIndex={0}
             >
-              <MoreVertical className="w-5 h-5 text-gray-400 mx-auto" />
+              <MoreVertical className="w-5 h-5 text-gray-400" style={{marginLeft: '-9px'}} />
             </button>
             <button
               onClick={toggleCamera}
