@@ -89,6 +89,14 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const sessionIdRef = useRef<string | null>(null);
   const firstAgentMessageAdded = useRef(false);
 
+  // Add state and ref for grace period
+  const [isGracePeriod, setIsGracePeriod] = useState(false);
+  const [graceSecondsLeft, setGraceSecondsLeft] = useState(5);
+  const graceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Add state for accumulating transcript
+  const [accumulatedTranscript, setAccumulatedTranscript] = useState('');
+
   // Remove agentSlides array and all slide navigation/rendering code
 
   useEffect(() => {
@@ -146,6 +154,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       }
       if (recognitionRef.current) {
         recognitionRef.current.stop();
+      }
+      if (graceTimeoutRef.current) {
+        clearInterval(graceTimeoutRef.current);
       }
       // Cleanup camera stream (only if it's not the preview stream)
       if (streamRef.current && streamRef.current !== previewStream) {
@@ -278,7 +289,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     }
   };
 
-  const startSpeechRecognition = () => {
+  const startSpeechRecognition = (appendMode = false) => {
     if (microphonePermission !== 'granted') {
       console.log('[ScreeningInterface] Microphone permission not granted, cannot start speech recognition');
       addAgentMessage("Speech recognition is not supported in your browser. Please type your responses.");
@@ -303,6 +314,8 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       setIsListening(true);
       // Start 15-second speaking timer
       startSpeakingTimer();
+      // If this is a new answer, clear accumulated transcript
+      if (!appendMode) setAccumulatedTranscript('');
     };
 
     recognition.onend = () => {
@@ -310,6 +323,27 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       setIsListening(false);
       setIsSpeaking(false);
       setSpeakingTimer(null);
+      // Start grace period
+      setIsGracePeriod(true);
+      setGraceSecondsLeft(5);
+      graceTimeoutRef.current = setInterval(() => {
+        setGraceSecondsLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(graceTimeoutRef.current!);
+            setIsGracePeriod(false);
+            // Finalize answer after grace period
+            handleSendMessage(accumulatedTranscript);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      // Automatically restart recognition during grace period
+      setTimeout(() => {
+        if (isGracePeriod) {
+          startSpeechRecognition(true); // append mode
+        }
+      }, 100); // slight delay to avoid rapid restart
     };
 
     recognition.onerror = (event: any) => {
@@ -327,8 +361,16 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       console.log('[ScreeningInterface] Speech transcribed:', transcript);
+      // Append transcript
+      setAccumulatedTranscript(prev => prev ? prev + ' ' + transcript : transcript);
       setCandidateResponse(transcript);
-      handleSendMessage(transcript);
+      // Cancel grace period if running
+      if (graceTimeoutRef.current) {
+        clearInterval(graceTimeoutRef.current);
+        setIsGracePeriod(false);
+      }
+      // Restart recognition to keep listening for more input
+      startSpeechRecognition(true); // append mode
     };
 
     try {
@@ -569,8 +611,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   };
 
   const handleSendMessage = async (text?: string) => {
-    const messageText = text || candidateResponse;
+    const messageText = text || accumulatedTranscript || candidateResponse;
     if (!messageText.trim()) return;
+    setAccumulatedTranscript(''); // clear after sending
     
     // Use session ID from ref if state is null
     const currentSessionId = sessionId || sessionIdRef.current;
@@ -1171,6 +1214,12 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
                       </div>
                     )}
                   </>
+                )}
+                {isGracePeriod && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-yellow-700 text-white px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-2">
+                    <span>Waiting for you to continue...</span>
+                    <span className="font-bold">{graceSecondsLeft}s</span>
+                  </div>
                 )}
               </div>
             </div>
