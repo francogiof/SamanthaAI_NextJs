@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
       candidateId, 
       requirementId,
       sessionId,
+      currentStep = 0,
       isNewSession = false
     } = await req.json();
     
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest) {
       candidateId, 
       requirementId,
       sessionId,
+      currentStep,
       isNewSession
     });
 
@@ -42,62 +44,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    // Generate agent response
+    // Generate agent response using the correct parameters
     const agentResult = await focusedInterviewAgent.generateResponse(
-      currentSessionId, 
-      candidateMessage || ''
+      candidateId,
+      requirementId,
+      candidateMessage || '',
+      currentStep
     );
 
-    // Get updated progress and context window info
-    const progress = focusedInterviewAgent.getProgress(currentSessionId);
-    const contextWindowInfo = focusedInterviewAgent.getContextWindowInfo(currentSessionId);
-    const allStepsWithStatus = focusedInterviewAgent.getAllStepsWithStatus(currentSessionId);
-
-    // Check if we should advance context window
-    if (interviewManager.shouldAdvanceContextWindow(currentSessionId)) {
-      interviewManager.advanceContextWindow(currentSessionId);
-      console.log('[API/screening/focused-conversation] Advanced context window');
-      
-      // If this was a section transition, modify the response
-      if (agentResult.shouldMove && !candidateMessage) {
-        const sectionMessage = focusedInterviewAgent.getSectionTransitionMessage(currentSessionId);
-        agentResult.response = sectionMessage + ' ' + agentResult.response;
-      }
-    }
-
-    // Check if we should advance to next section
-    const shouldAdvanceSection = focusedInterviewAgent.shouldAdvanceToNextSection(currentSessionId);
-    if (shouldAdvanceSection && !candidateMessage) {
-      console.log('[API/screening/focused-conversation] Should advance to next section');
-    }
+    // Get updated progress from interview manager
+    const progress = interviewManager.getSessionStats(currentSessionId);
+    const allStepsWithStatus = interviewManager.getAllStepsWithStatus(currentSessionId);
 
     console.log('[API/screening/focused-conversation] Generated response:', {
       response: agentResult.response.substring(0, 100) + '...',
-      shouldMove: agentResult.shouldMove,
-      reason: agentResult.reason,
-      stepCompleted: agentResult.stepCompleted,
-      needsFollowUp: agentResult.needsFollowUp,
-      needsSecondChance: agentResult.needsSecondChance,
-      progress: progress.completionRate.toFixed(1) + '%',
-      stepsWithNoResponse: progress.stepsWithNoResponse,
-      stepsWithSecondChance: progress.stepsWithSecondChance
+      nextStep: agentResult.nextStep,
+      progress: progress?.completionRate?.toFixed(1) + '%',
+      stepsWithNoResponse: progress?.stepsWithNoResponse
     });
 
     return NextResponse.json({ 
       success: true,
       response: agentResult.response,
       sessionId: currentSessionId,
+      nextStep: agentResult.nextStep,
       progress,
-      contextWindowInfo,
       allStepsWithStatus,
-      agentResult: {
-        shouldMove: agentResult.shouldMove,
-        reason: agentResult.reason,
-        stepCompleted: agentResult.stepCompleted,
-        needsFollowUp: agentResult.needsFollowUp,
-        needsSecondChance: agentResult.needsSecondChance
-      },
-      interviewComplete: progress.interviewComplete
+      interviewComplete: progress?.interviewComplete || false
     });
 
   } catch (error) {

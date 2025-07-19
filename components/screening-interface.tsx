@@ -1063,17 +1063,17 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       <div className="flex-1 flex relative">
         {/* Video Area - Dynamic width based on sidebar state */}
         <div className={`transition-all duration-500 ease-in-out ${showSidebar ? 'w-[calc(100%-24rem)]' : 'w-full'}`}>
-          <div className="p-4 video-area h-full">
-            <div className="grid grid-cols-2 gap-4 h-full">
+          <div className="h-full">
+            <div className="grid grid-cols-2 h-full">
               {/* Agent Video */}
-              <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative">
+              <div className="bg-gray-800 flex flex-col items-center justify-center relative">
                 <div className={`blob mb-4 transition-all duration-[2000ms] ${shouldMorphBlob ? 'blob-animate' : ''} ${isBlobResetting ? 'blob-resetting' : ''}`}></div>
                 <h3 className="text-white font-semibold">Sarah (Interviewer)</h3>
                 <p className="text-gray-400 text-sm">Screening Agent</p>
               </div>
 
               {/* Candidate Video */}
-              <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative overflow-hidden candidate-video-container">
+              <div className="bg-gray-800 flex flex-col items-center justify-center relative overflow-hidden candidate-video-container">
                 {/* Auto-microphone indicator */}
                 {autoMicrophoneEnabled && (
                   <div className="auto-microphone-indicator">
