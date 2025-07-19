@@ -1061,124 +1061,125 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
 
       {/* Main Content */}
       <div className="flex-1 flex relative">
-        {/* Video Area */}
-        <div className={`flex-1 p-4 video-area transition-all duration-500 ${showSidebar ? '' : '!pr-0'}`}>
-          <div className="grid grid-cols-2 gap-4 h-full">
-            {/* Agent Video */}
-            <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative">
-              <div className={`blob mb-4 transition-all duration-[2000ms] ${shouldMorphBlob ? 'blob-animate' : ''} ${isBlobResetting ? 'blob-resetting' : ''}`}></div>
-              <h3 className="text-white font-semibold">Sarah (Interviewer)</h3>
-              <p className="text-gray-400 text-sm">Screening Agent</p>
-            </div>
+        {/* Video Area - Dynamic width based on sidebar state */}
+        <div className={`transition-all duration-500 ease-in-out ${showSidebar ? 'w-[calc(100%-24rem)]' : 'w-full'}`}>
+          <div className="p-4 video-area h-full">
+            <div className="grid grid-cols-2 gap-4 h-full">
+              {/* Agent Video */}
+              <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative">
+                <div className={`blob mb-4 transition-all duration-[2000ms] ${shouldMorphBlob ? 'blob-animate' : ''} ${isBlobResetting ? 'blob-resetting' : ''}`}></div>
+                <h3 className="text-white font-semibold">Sarah (Interviewer)</h3>
+                <p className="text-gray-400 text-sm">Screening Agent</p>
+              </div>
 
-            {/* Candidate Video */}
-            <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative overflow-hidden candidate-video-container">
-              {/* Auto-microphone indicator */}
-              {autoMicrophoneEnabled && (
-                <div className="auto-microphone-indicator">
-                  🎤 Auto-enabled
-                </div>
-              )}
-              
-              {/* Always render video element but control visibility */}
-              <video
-                ref={videoRef}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-                  isCameraOn ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                }`}
-                autoPlay
-                muted
-                playsInline
-                style={{ display: isCameraOn ? 'block' : 'none' }}
-              />
-              
-              {/* Speaking Timer - show when camera is on too */}
-              {speakingTimer !== null && isSpeaking && isCameraOn && (
-                <div className="speaking-timer">
-                  <div className="speaking-timer-circle">
-                    <svg className="speaking-timer-svg" viewBox="0 0 36 36">
-                      <path
-                        className="speaking-timer-bg"
-                        d="M18 2.0845
-                          a 15.9155 15.9155 0 0 1 0 31.831
-                          a 15.9155 15.9155 0 0 1 0 -31.831"
-                      />
-                      <path
-                        className="speaking-timer-progress"
-                        strokeDasharray={`${(speakingTimer / 15) * 100}, 100`}
-                        d="M18 2.0845
-                          a 15.9155 15.9155 0 0 1 0 31.831
-                          a 15.9155 15.9155 0 0 1 0 -31.831"
-                      />
-                    </svg>
-                    <div className="speaking-timer-text">{speakingTimer}s</div>
+              {/* Candidate Video */}
+              <div className="bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center relative overflow-hidden candidate-video-container">
+                {/* Auto-microphone indicator */}
+                {autoMicrophoneEnabled && (
+                  <div className="auto-microphone-indicator">
+                    🎤 Auto-enabled
                   </div>
-                  <span className="text-green-400 text-sm">Speaking time</span>
-                </div>
-              )}
-              
-              {/* Show avatar when camera is off */}
-              {!isCameraOn && (
-                <>
-                  <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 transition-all duration-300 ${
-                    isListening ? 'avatar-listening' : 
-                    isVideoOn ? 'bg-green-600' : 'bg-gray-600'
-                  }`}>
-                    <User className="w-12 h-12 text-white" />
+                )}
+                
+                {/* Always render video element but control visibility */}
+                <video
+                  ref={videoRef}
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+                    isCameraOn ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
+                  autoPlay
+                  muted
+                  playsInline
+                  style={{ display: isCameraOn ? 'block' : 'none' }}
+                />
+                
+                {/* Speaking Timer - show when camera is on too */}
+                {speakingTimer !== null && isSpeaking && isCameraOn && (
+                  <div className="speaking-timer">
+                    <div className="speaking-timer-circle">
+                      <svg className="speaking-timer-svg" viewBox="0 0 36 36">
+                        <path
+                          className="speaking-timer-bg"
+                          d="M18 2.0845
+                            a 15.9155 15.9155 0 0 1 0 31.831
+                            a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                        <path
+                          className="speaking-timer-progress"
+                          strokeDasharray={`${(speakingTimer / 15) * 100}, 100`}
+                          d="M18 2.0845
+                            a 15.9155 15.9155 0 0 1 0 31.831
+                            a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                      </svg>
+                      <div className="speaking-timer-text">{speakingTimer}s</div>
+                    </div>
+                    <span className="text-green-400 text-sm">Speaking time</span>
                   </div>
-                  {isListening && (
-                    <div className="audio-indicator">
-                      <div className="audio-dots">
-                        <div className="audio-dot"></div>
-                        <div className="audio-dot"></div>
-                        <div className="audio-dot"></div>
+                )}
+                
+                {/* Show avatar when camera is off */}
+                {!isCameraOn && (
+                  <>
+                    <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 transition-all duration-300 ${
+                      isListening ? 'avatar-listening' : 
+                      isVideoOn ? 'bg-green-600' : 'bg-gray-600'
+                    }`}>
+                      <User className="w-12 h-12 text-white" />
+                    </div>
+                    {isListening && (
+                      <div className="audio-indicator">
+                        <div className="audio-dots">
+                          <div className="audio-dot"></div>
+                          <div className="audio-dot"></div>
+                          <div className="audio-dot"></div>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  <h3 className="text-white font-semibold">You</h3>
-                  <p className="text-gray-400 text-sm">
-                    {isVideoOn ? 'Video On' : 'Video Off'} • {isMuted ? 'Muted' : 'Unmuted'}
-                  </p>
-                  {autoRecordCountdown !== null && !isListening && (
-                    <div className="countdown-indicator">
-                      <div className="countdown-dot"></div>
-                      <span className="text-yellow-400 text-sm">Listening in {autoRecordCountdown}s...</span>
-                    </div>
-                  )}
-                  {/* Speaking Timer */}
-                  {speakingTimer !== null && isSpeaking && (
-                    <div className="speaking-timer">
-                      <div className="speaking-timer-circle">
-                        <svg className="speaking-timer-svg" viewBox="0 0 36 36">
-                          <path
-                            className="speaking-timer-bg"
-                            d="M18 2.0845
-                              a 15.9155 15.9155 0 0 1 0 31.831
-                              a 15.9155 15.9155 0 0 1 0 -31.831"
-                          />
-                          <path
-                            className="speaking-timer-progress"
-                            strokeDasharray={`${(speakingTimer / 15) * 100}, 100`}
-                            d="M18 2.0845
-                              a 15.9155 15.9155 0 0 1 0 31.831
-                              a 15.9155 15.9155 0 0 1 0 -31.831"
-                          />
-                        </svg>
-                        <div className="speaking-timer-text">{speakingTimer}s</div>
+                    )}
+                    <h3 className="text-white font-semibold">You</h3>
+                    <p className="text-gray-400 text-sm">
+                      {isVideoOn ? 'Video On' : 'Video Off'} • {isMuted ? 'Muted' : 'Unmuted'}
+                    </p>
+                    {autoRecordCountdown !== null && !isListening && (
+                      <div className="countdown-indicator">
+                        <div className="countdown-dot"></div>
+                        <span className="text-yellow-400 text-sm">Listening in {autoRecordCountdown}s...</span>
                       </div>
-                      <span className="text-green-400 text-sm">Speaking time remaining</span>
-                    </div>
-                  )}
-                </>
-              )}
+                    )}
+                    {/* Speaking Timer */}
+                    {speakingTimer !== null && isSpeaking && (
+                      <div className="speaking-timer">
+                        <div className="speaking-timer-circle">
+                          <svg className="speaking-timer-svg" viewBox="0 0 36 36">
+                            <path
+                              className="speaking-timer-bg"
+                              d="M18 2.0845
+                                a 15.9155 15.9155 0 0 1 0 31.831
+                                a 15.9155 15.9155 0 0 1 0 -31.831"
+                            />
+                            <path
+                              className="speaking-timer-progress"
+                              strokeDasharray={`${(speakingTimer / 15) * 100}, 100`}
+                              d="M18 2.0845
+                                a 15.9155 15.9155 0 0 1 0 31.831
+                                a 15.9155 15.9155 0 0 1 0 -31.831"
+                            />
+                          </svg>
+                          <div className="speaking-timer-text">{speakingTimer}s</div>
+                        </div>
+                        <span className="text-green-400 text-sm">Speaking time remaining</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Slideable Chat Area */}
+        {/* Chat Area - Now part of the flex layout */}
         <div
-          className={`fixed top-0 right-0 h-full z-40 transition-transform duration-500 ease-in-out ${showSidebar ? 'translate-x-0' : 'translate-x-full'} w-96`}
-          style={{ boxShadow: showSidebar ? 'rgba(0,0,0,0.4) -8px 0 24px' : 'none' }}
+          className={`transition-all duration-500 ease-in-out ${showSidebar ? 'w-96' : 'w-0'} overflow-hidden`}
         >
           <Card className="flex flex-col h-full rounded-xl border border-gray-700 shadow-xl bg-gray-900/95 p-0">
             {/* Chat Header */}
