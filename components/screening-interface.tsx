@@ -1030,6 +1030,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   };
 
   const [showSidebar, setShowSidebar] = useState(true); // Sidebar visibility
+  const [ccEnabled, setCcEnabled] = useState(true); // CC is enabled by default
 
   if (!isConnected) {
     return (
@@ -1425,6 +1426,14 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
               </div>
             )}
           </div>
+          <button
+            onClick={() => setCcEnabled((v) => !v)}
+            className={`p-3 rounded-full transition-all duration-200 flex items-center justify-center focus:outline-none ${ccEnabled ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+            title={ccEnabled ? 'Hide Subtitles (CC)' : 'Show Subtitles (CC)'}
+            style={{marginLeft: '8px', width: '48px', height: '48px'}}
+          >
+            <span className="font-bold text-base tracking-widest">CC</span>
+          </button>
           <div className="w-px h-8 bg-gray-600"></div>
           <button 
             onClick={endCall}
@@ -1435,6 +1444,42 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           </button>
         </div>
       </div>
+
+      {/* Subtitles Overlay (CC) */}
+      {ccEnabled && (
+        <div className="fixed bottom-32 left-1/2 transform -translate-x-1/2 z-40 w-full flex justify-center pointer-events-none">
+          <div className="bg-black bg-opacity-80 text-white rounded-lg px-6 py-3 text-lg max-w-2xl w-full text-center shadow-xl subtitle-cc flex flex-col gap-1">
+            {(() => {
+              // Only show last 3 messages
+              const lastMsgs = messages.slice(-3);
+              return lastMsgs.map((msg, idx) => {
+                if (msg.sender === 'agent' && idx === lastMsgs.length - 1 && agentTyping) {
+                  // Show typing animation for agent if currently typing
+                  return (
+                    <div key={msg.id + idx} className="flex items-center justify-center gap-2 text-blue-300 w-full overflow-hidden whitespace-nowrap">
+                      <span>Agent:</span>
+                      <span className="typing-dots">
+                        <span className="dot">.</span>
+                        <span className="dot">.</span>
+                        <span className="dot">.</span>
+                      </span>
+                    </div>
+                  );
+                }
+                return (
+                  <div
+                    key={msg.id + idx}
+                    className={`w-full overflow-hidden text-ellipsis whitespace-nowrap ${msg.sender === 'agent' ? 'text-blue-300' : 'text-green-200'}`}
+                    title={msg.content}
+                  >
+                    {msg.sender === 'agent' ? 'Agent: ' : 'You: '}{msg.content}
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
-} 
+}
