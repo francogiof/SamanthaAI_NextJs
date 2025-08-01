@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, MessageCircle, Share2, Mic, MicOff, Video, VideoOff, Phone, Volume2, VolumeX, MoreVertical, Clock, PanelRightOpen, PanelRightClose } from 'lucide-react';
 import './screening-interface.css';
 import { Card } from "./ui/card";
@@ -1032,6 +1032,39 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const [showSidebar, setShowSidebar] = useState(true); // Sidebar visibility
   const [ccEnabled, setCcEnabled] = useState(true); // CC is enabled by default
 
+  // Typewriter animation state for agent's subtitle
+  const [agentSubtitle, setAgentSubtitle] = useState('');
+  const typewriterIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastAgentMessageRef = useRef<string>('');
+
+  // Animate agent's last message in CC overlay
+  useEffect(() => {
+    if (!ccEnabled) return;
+    // Find last agent message
+    const lastAgentMsg = messages.filter(m => m.sender === 'agent').slice(-1)[0]?.content || '';
+    if (agentTyping) {
+      // If agent is typing, animate the last message
+      setAgentSubtitle('');
+      lastAgentMessageRef.current = lastAgentMsg;
+      if (typewriterIntervalRef.current) clearInterval(typewriterIntervalRef.current);
+      let i = 0;
+      typewriterIntervalRef.current = setInterval(() => {
+        i++;
+        setAgentSubtitle(lastAgentMsg.slice(0, i));
+        if (i >= lastAgentMsg.length) {
+          clearInterval(typewriterIntervalRef.current!);
+        }
+      }, 24); // Speed: 24ms per char (adjust as needed)
+    } else {
+      // When agent is not typing, show full last message
+      if (typewriterIntervalRef.current) clearInterval(typewriterIntervalRef.current);
+      setAgentSubtitle(lastAgentMsg);
+    }
+    return () => {
+      if (typewriterIntervalRef.current) clearInterval(typewriterIntervalRef.current);
+    };
+  }, [agentTyping, messages, ccEnabled]);
+
   if (!isConnected) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -1352,7 +1385,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
 
       {/* Google Meet-style Floating Controls */}
       <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
-        <div className="bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-full px-6 py-3 flex items-center space-x-4 shadow-2xl">
+        <div className="bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-full px-6 py-3 flex items-center space-x-4 shadow-2xl floating-controls">
           <button
             onClick={toggleAudio}
             className={`p-3 rounded-full transition-all duration-200 ${!audioEnabled ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
@@ -1428,9 +1461,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           </div>
           <button
             onClick={() => setCcEnabled((v) => !v)}
-            className={`p-3 rounded-full transition-all duration-200 flex items-center justify-center focus:outline-none ${ccEnabled ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+            className={`p-2.5 rounded-full transition-all duration-200 flex items-center justify-center focus:outline-none ${ccEnabled ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-300 hover:bg-gray-600'}`}
             title={ccEnabled ? 'Hide Subtitles (CC)' : 'Show Subtitles (CC)'}
-            style={{marginLeft: '8px', width: '48px', height: '48px'}}
+            // To customize: change bg-blue-600 for active color, bg-gray-700 for inactive, p-3 for size, and space-x-4 in parent for spacing
           >
             <span className="font-bold text-base tracking-widest">CC</span>
           </button>
@@ -1453,18 +1486,31 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
               // Only show last 3 messages
               const lastMsgs = messages.slice(-3);
               return lastMsgs.map((msg, idx) => {
-                if (msg.sender === 'agent' && idx === lastMsgs.length - 1 && agentTyping) {
-                  // Show typing animation for agent if currently typing
-                  return (
-                    <div key={msg.id + idx} className="flex items-center justify-center gap-2 text-blue-300 w-full overflow-hidden whitespace-nowrap">
-                      <span>Agent:</span>
-                      <span className="typing-dots">
-                        <span className="dot">.</span>
-                        <span className="dot">.</span>
-                        <span className="dot">.</span>
-                      </span>
-                    </div>
-                  );
+                if (msg.sender === 'agent' && idx === lastMsgs.length - 1) {
+                  // Animate agent's last message if agentTyping
+                  if (agentTyping) {
+                    return (
+                      <div key={msg.id + idx} className="flex items-center justify-center gap-2 text-blue-300 w-full overflow-hidden whitespace-nowrap">
+                        <span>Agent:</span>
+                        <span className="typewriter-text" style={{ minWidth: '2ch' }}>{agentSubtitle}</span>
+                        <span className="typing-dots">
+                          <span className="dot">.</span>
+                          <span className="dot">.</span>
+                          <span className="dot">.</span>
+                        </span>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div
+                        key={msg.id + idx}
+                        className="w-full overflow-hidden text-ellipsis whitespace-nowrap text-blue-300"
+                        title={msg.content}
+                      >
+                        Agent: {msg.content}
+                      </div>
+                    );
+                  }
                 }
                 return (
                   <div
