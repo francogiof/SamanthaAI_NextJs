@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@aws-sdk/client-polly": "^3.859.0",
+    "@aws-sdk/client-transcribe": "^3.859.0",
     "@langchain/core": "^0.3.62",
     "@langchain/langgraph": "^0.3.8",
     "@langchain/openai": "^0.5.18",

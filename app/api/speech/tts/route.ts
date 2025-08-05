@@ -1,55 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { PollyClient, SynthesizeSpeechCommand } from '@aws-sdk/client-polly';
+
+const polly = new PollyClient({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
 
 export async function POST(req: NextRequest) {
   try {
     console.log('[API/speech/tts] Processing TTS request...');
     
-    const { text, voice = 'sarah' } = await req.json();
-    console.log('[API/speech/tts] Received text:', text, 'voice:', voice);
+    const { text, voiceId = 'Joanna' } = await req.json();
+    console.log('[API/speech/tts] Received text:', text, 'voiceId:', voiceId);
     
     if (!text) {
       console.log('[API/speech/tts] Missing text parameter');
       return NextResponse.json({ error: 'Missing text parameter' }, { status: 400 });
     }
 
-    const apiKey = process.env.LEMONFOX_TTS_KEY;
-    if (!apiKey) {
-      console.error('[API/speech/tts] Missing LEMONFOX_TTS_KEY environment variable');
-      return NextResponse.json({ error: 'TTS service not configured' }, { status: 500 });
-    }
-
-    console.log('[API/speech/tts] Calling Lemonfox TTS API...');
-    
-    const response = await fetch('https://api.lemonfox.ai/v1/audio/speech', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        input: text,
-        voice: voice,
-        response_format: 'mp3',
-        model: 'tts-1',
-      }),
+    const command = new SynthesizeSpeechCommand({
+      Text: text,
+      OutputFormat: 'pcm', // Raw PCM for lowest latency
+      VoiceId: voiceId,
+      SampleRate: '16000', // 16kHz, standard for speech
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[API/speech/tts] Lemonfox API error:', response.status, errorText);
-      return NextResponse.json({ 
-        error: 'TTS service error', 
-        details: errorText 
-      }, { status: response.status });
+    const data = await polly.send(command);
+    if (!data.AudioStream) {
+      return NextResponse.json({ error: 'No audio stream returned.' }, { status: 500 });
     }
-
-    const audioBuffer = await response.arrayBuffer();
+    // Convert AudioStream to Buffer
+    const audioBuffer = Buffer.from(await data.AudioStream.transformToByteArray());
     console.log('[API/speech/tts] TTS successful, audio size:', audioBuffer.byteLength, 'bytes');
 
+    // Return raw PCM audio. Client must use Web Audio API to play this.
     return new NextResponse(audioBuffer, {
+      status: 200,
       headers: {
-        'Content-Type': 'audio/mpeg',
-        'Content-Length': audioBuffer.byteLength.toString(),
+        'Content-Type': 'audio/L16; rate=16000', // MIME for raw PCM
+        'Content-Disposition': 'inline; filename="speech.pcm"',
+        'X-Audio-Format': 'pcm16le',
       },
     });
 
@@ -57,4 +49,4 @@ export async function POST(req: NextRequest) {
     console.error('[API/speech/tts] Error:', error);
     return NextResponse.json({ error: 'Failed to generate speech' }, { status: 500 });
   }
-} 
+}
