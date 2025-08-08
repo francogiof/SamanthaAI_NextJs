@@ -395,71 +395,68 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
 
   const playAgentSpeech = async (text: string) => {
     if (!audioEnabled) {
-      // If audio is disabled, still start countdown after 1 second
       setTimeout(() => {
         if (!screeningComplete && !isListening && microphonePermission === 'granted') {
           startAutoRecordingCountdown();
         }
-        // Show vignette after first TTS
         if (!firstAgentTTSFinished) setShowMicAssist(true);
         setFirstAgentTTSFinished(true);
       }, 1000);
       return;
     }
-    
     try {
       console.log('[ScreeningInterface] Generating speech for:', text);
-      // Instead of setting isPlayingAudio immediately, set a timer for 1.5s
       if (blobMorphTimeoutRef.current) {
         clearTimeout(blobMorphTimeoutRef.current);
       }
-      setIsPlayingAudio(false); // Always reset first
+      setIsPlayingAudio(false);
       const response = await fetch('/api/speech/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice: 'sarah' }),
+        body: JSON.stringify({ text, voiceId: 'Joanna' }),
       });
-
       if (response.ok) {
-        const audioBlob = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-        
-        if (audioRef.current) {
-          audioRef.current.src = audioUrl;
-          audioRef.current.onended = () => {
-            setIsPlayingAudio(false);
-            if (blobMorphTimeoutRef.current) {
-              clearTimeout(blobMorphTimeoutRef.current);
-            }
-            URL.revokeObjectURL(audioUrl);
-            // Start countdown after agent finishes speaking (reduced to 1 second)
-            setTimeout(() => {
-              if (!screeningComplete && !isListening && microphonePermission === 'granted') {
-                startAutoRecordingCountdown();
-              }
-              // Show vignette after first TTS
-              if (!firstAgentTTSFinished) setShowMicAssist(true);
-              setFirstAgentTTSFinished(true);
-            }, 1000);
-          };
-          // Start morphing 1.5s after TTS starts
-          blobMorphTimeoutRef.current = setTimeout(() => {
-            setIsPlayingAudio(true);
-          }, 300);
-          await audioRef.current.play();
+        const arrayBuffer = await response.arrayBuffer();
+        // Web Audio API: decode and play PCM
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+        // PCM is 16-bit signed little-endian mono
+        const pcm16 = new Int16Array(arrayBuffer);
+        const float32 = new Float32Array(pcm16.length);
+        for (let i = 0; i < pcm16.length; i++) {
+          float32[i] = pcm16[i] / 32768;
         }
+        const buffer = audioContext.createBuffer(1, float32.length, 16000);
+        buffer.getChannelData(0).set(float32);
+        const source = audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioContext.destination);
+        source.onended = () => {
+          setIsPlayingAudio(false);
+          if (blobMorphTimeoutRef.current) {
+            clearTimeout(blobMorphTimeoutRef.current);
+          }
+          setTimeout(() => {
+            if (!screeningComplete && !isListening && microphonePermission === 'granted') {
+              startAutoRecordingCountdown();
+            }
+            if (!firstAgentTTSFinished) setShowMicAssist(true);
+            setFirstAgentTTSFinished(true);
+          }, 1000);
+        };
+        blobMorphTimeoutRef.current = setTimeout(() => {
+          setIsPlayingAudio(true);
+        }, 300);
+        source.start();
       } else {
         console.error('[ScreeningInterface] TTS failed:', response.status);
         setIsPlayingAudio(false);
         if (blobMorphTimeoutRef.current) {
           clearTimeout(blobMorphTimeoutRef.current);
         }
-        // Start countdown even if TTS fails (reduced to 1 second)
         setTimeout(() => {
           if (!screeningComplete && !isListening && microphonePermission === 'granted') {
             startAutoRecordingCountdown();
           }
-          // Show vignette after first TTS
           if (!firstAgentTTSFinished) setShowMicAssist(true);
           setFirstAgentTTSFinished(true);
         }, 3000);
@@ -470,12 +467,10 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       if (blobMorphTimeoutRef.current) {
         clearTimeout(blobMorphTimeoutRef.current);
       }
-      // Start countdown even if TTS fails (reduced to 1 second)
       setTimeout(() => {
         if (!screeningComplete && !isListening && microphonePermission === 'granted') {
           startAutoRecordingCountdown();
         }
-        // Show vignette after first TTS
         if (!firstAgentTTSFinished) setShowMicAssist(true);
         setFirstAgentTTSFinished(true);
       }, 1000);
@@ -1388,4 +1383,4 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       </div>
     </div>
   );
-} 
+}
