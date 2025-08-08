@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { User, MessageCircle, Share2, Mic, MicOff, Video, VideoOff, Phone, Volume2, VolumeX, MoreVertical, Clock, PanelRightOpen, PanelRightClose } from 'lucide-react';
 import './screening-interface.css';
 import { Card } from "./ui/card";
+import { ScreeningBar, ScreeningSidebarToggle } from './screening-bar/ScreeningBar';
 
 interface ScreeningInterfaceProps {
   requirementId: string;
@@ -123,6 +124,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       setIsInitialized(true);
     }
     startPhotoCapture();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requirementId, userId, previewStream, previewCameraOn, previewMicrophoneOn, isInitialized]);
 
   useEffect(() => {
@@ -131,6 +133,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       console.log('[ScreeningInterface] Screening completed, calculating final score...');
       completeScreening();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screeningProgress]);
 
   useEffect(() => {
@@ -154,6 +157,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       // Cleanup photo capture
       stopPhotoCapture();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewStream]);
 
   // Handle video element setup when preview stream is available
@@ -167,6 +171,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         console.error('[ScreeningInterface] ❌ Error playing preview video:', error);
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewStream, previewCameraOn, videoRef.current]);
 
   // Initialize video element when component mounts
@@ -983,6 +988,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
 
   const [showSidebar, setShowSidebar] = useState(true); // Sidebar visibility
 
+  // Add state for CC (subtitles)
+  const [ccEnabled, setCCEnabled] = useState<boolean>(false);
+
   if (!isConnected) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -1271,15 +1279,6 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
             {/* Removed input area for typing responses, as the interview is conversational (voice only) */}
           </Card>
         </div>
-        {/* Sidebar Toggle Button */}
-        <button
-          className="fixed bottom-8 right-8 z-50 bg-gray-800 hover:bg-gray-700 text-white rounded-full p-4 shadow-lg transition-all duration-200 flex items-center justify-center focus:outline-none"
-          style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.25)' }}
-          onClick={() => setShowSidebar((v) => !v)}
-          aria-label={showSidebar ? 'Hide chat panel' : 'Show chat panel'}
-        >
-          {showSidebar ? <PanelRightClose className="w-6 h-6" /> : <PanelRightOpen className="w-6 h-6" />}
-        </button>
       </div>
 
       {/* Bottom Controls */}
@@ -1295,92 +1294,31 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         </div>
       </div>
 
-      {/* Google Meet-style Floating Controls */}
-      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
-        <div className="bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-full px-6 py-3 flex items-center space-x-4 shadow-2xl">
-          <button
-            onClick={toggleAudio}
-            className={`p-3 rounded-full transition-all duration-200 ${!audioEnabled ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
-            title={!audioEnabled ? 'Enable Audio' : 'Disable Audio'}
-          >
-            {!audioEnabled ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-          </button>
-          <div className="flex items-center relative group">
-            {/* 3-dots for mic device selection, styled as accessory button, behind and to the left, with rounded rectangle shape */}
-            <button
-              className="mr-0.5 p-3 bg-gray-900 rounded-full border border-gray-800 shadow-md hover:bg-gray-800 focus:outline-none flex items-center justify-center group-hover:bg-gray-800"
-              style={{width: '70px', height: '48px', marginRight: '-16px', zIndex: 0, position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)'}} 
-              onClick={() => setShowMicDropdown((v) => !v)}
-              tabIndex={0}
-            >
-              <MoreVertical className="w-5 h-5 text-gray-400" style={{marginLeft: '-9px'}} />
-            </button>
-            <button
-              onClick={handleMicButton}
-              className={`p-3 rounded-full transition-all duration-200 border-2 ${isListening ? 'border-[#22c55e]' : 'border-gray-700'} bg-gray-700 text-white hover:bg-gray-600`}
-              title={isListening ? 'Turn Off Microphone' : 'Turn On Microphone'}
-              style={{position: 'relative', zIndex: 1, marginLeft: '40px'}}
-            >
-              {isListening
-                ? <Mic className="w-5 h-5" style={{ color: '#22c55e' }} />
-                : <MicOff className="w-5 h-5 text-white" />}
-              {/* Mic assist arrow/tooltip */}
-              {showMicAssist && (
-                <div className="absolute -top-52 left-1/2 -translate-x-1/2 flex flex-col items-center z-50">
-                  <div className="bg-gray-900 text-white px-3 py-2 rounded shadow-lg text-xs font-semibold mb-3 border border-green-500">
-                    Turn on the microphone to start answering.<br/>You only need to do this once.
-                  </div>
-                  <svg className="animate-bounce-slow" width="24" height="16" viewBox="0 0 24 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 16L0 0H24L12 16Z" fill="#22c55e" />
-                    <path d="M12 16L0 0H24L12 16Z" fill="#22c55e" fillOpacity="0.5" />
-                  </svg>
-                </div>
-              )}
-            </button>
-            {showMicDropdown && micDevices.length > 0 && (
-              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-800 border border-gray-600 rounded shadow-lg z-50 min-w-[160px]">
-                {micDevices.map((dev) => (
-                  <div key={dev.deviceId} className="px-4 py-2 text-white hover:bg-gray-700 cursor-pointer text-sm border-b border-gray-700 last:border-b-0">{dev.label || 'Microphone'}</div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="flex items-center relative group">
-            {/* 3-dots for camera device selection, styled as accessory button, behind and to the left, with rounded rectangle shape */}
-            <button
-              className="mr-0.5 p-3 bg-gray-900 rounded-full border border-gray-800 shadow-md hover:bg-gray-800 focus:outline-none flex items-center justify-center group-hover:bg-gray-800"
-              style={{width: '70px', height: '48px', marginRight: '-16px', zIndex: 0, position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)'}}
-              onClick={() => setShowCameraDropdown((v) => !v)}
-              tabIndex={0}
-            >
-              <MoreVertical className="w-5 h-5 text-gray-400" style={{marginLeft: '-9px'}} />
-            </button>
-            <button
-              onClick={toggleCamera}
-              className={`p-3 rounded-full transition-all duration-200 ${!isCameraOn ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
-              title={!isCameraOn ? 'Turn On Camera' : 'Turn Off Camera'}
-              style={{position: 'relative', zIndex: 1, marginLeft: '40px'}}
-            >
-              {!isCameraOn ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-            </button>
-            {showCameraDropdown && cameraDevices.length > 0 && (
-              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-800 border border-gray-600 rounded shadow-lg z-50 min-w-[160px]">
-                {cameraDevices.map((dev) => (
-                  <div key={dev.deviceId} className="px-4 py-2 text-white hover:bg-gray-700 cursor-pointer text-sm border-b border-gray-700 last:border-b-0">{dev.label || 'Camera'}</div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="w-px h-8 bg-gray-600"></div>
-          <button 
-            onClick={endCall}
-            className="p-3 rounded-full bg-red-600 text-white hover:bg-red-700 transition-all duration-200"
-            title="End Call"
-          >
-            <Phone className="w-5 h-5" />
-          </button>
+      {/* Google Meet-style Floating Controls (moved to ScreeningBar) */}
+      <ScreeningBar
+        audioEnabled={audioEnabled}
+        isListening={isListening}
+        isCameraOn={isCameraOn}
+        onToggleAudio={toggleAudio}
+        onMicButton={handleMicButton}
+        onToggleCamera={toggleCamera}
+        onEndCall={endCall}
+        onShowMicDropdown={() => setShowMicDropdown((v) => !v)}
+        showMicDropdown={showMicDropdown}
+        onToggleCC={() => setCCEnabled((v) => !v)}
+        ccEnabled={ccEnabled}
+      />
+      <ScreeningSidebarToggle showSidebar={showSidebar} onToggleSidebar={() => setShowSidebar((v) => !v)} />
+
+      {/* Subtitles/CC overlay (show if ccEnabled) */}
+      {ccEnabled && (
+        <div className="fixed bottom-32 right-8 z-50 bg-black bg-opacity-80 text-white px-6 py-3 rounded-lg shadow-xl text-lg max-w-xl" style={{ pointerEvents: 'none' }}>
+          {/* Show the last agent message as subtitles */}
+          {messages.length > 0 && messages[messages.length - 1].sender === 'agent' && (
+            <span>{messages[messages.length - 1].content}</span>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

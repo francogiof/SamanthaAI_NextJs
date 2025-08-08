@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       OutputFormat: 'pcm',
       VoiceId: voiceId,
       SampleRate: '16000',
+      Engine: 'neural', // Use Polly neural engine for higher quality
     });
     let data;
     try {
