@@ -5,14 +5,16 @@ interface ScreeningBarProps {
   audioEnabled: boolean;
   isListening: boolean;
   isCameraOn: boolean;
+  micDevices: MediaDeviceInfo[];
+  cameraDevices: MediaDeviceInfo[];
+  showMicDropdown: boolean;
+  showCameraDropdown: boolean;
   onToggleAudio: () => void;
   onMicButton: () => void;
   onToggleCamera: () => void;
-  onEndCall: () => void;
-  onToggleSidebar: () => void;
-  showSidebar: boolean;
   onShowMicDropdown: () => void;
-  showMicDropdown: boolean;
+  onShowCameraDropdown: () => void;
+  onEndCall: () => void;
   onToggleCC: () => void;
   ccEnabled: boolean;
 }
@@ -21,12 +23,16 @@ export const ScreeningBar: React.FC<ScreeningBarProps> = ({
   audioEnabled,
   isListening,
   isCameraOn,
+  micDevices,
+  cameraDevices,
+  showMicDropdown,
+  showCameraDropdown,
   onToggleAudio,
   onMicButton,
   onToggleCamera,
-  onEndCall,
   onShowMicDropdown,
-  showMicDropdown,
+  onShowCameraDropdown,
+  onEndCall,
   onToggleCC,
   ccEnabled,
 }) => {
@@ -40,6 +46,7 @@ export const ScreeningBar: React.FC<ScreeningBarProps> = ({
         >
           {!audioEnabled ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
         </button>
+        {/* Microphone group */}
         <div className="flex items-center relative group">
           <button
             className="mr-0.5 p-3 bg-gray-900 rounded-full border border-gray-800 shadow-md hover:bg-gray-800 focus:outline-none flex items-center justify-center group-hover:bg-gray-800"
@@ -59,15 +66,40 @@ export const ScreeningBar: React.FC<ScreeningBarProps> = ({
               ? <Mic className="w-5 h-5" style={{ color: '#22c55e' }} />
               : <MicOff className="w-5 h-5 text-white" />}
           </button>
+          {showMicDropdown && micDevices.length > 0 && (
+            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-800 border border-gray-600 rounded shadow-lg z-50 min-w-[160px]">
+              {micDevices.map((dev) => (
+                <div key={dev.deviceId} className="px-4 py-2 text-white hover:bg-gray-700 cursor-pointer text-sm border-b border-gray-700 last:border-b-0">{dev.label || 'Microphone'}</div>
+              ))}
+            </div>
+          )}
         </div>
-        {/* Camera Button */}
-        <button
-          onClick={onToggleCamera}
-          className={`p-3 rounded-full transition-all duration-200 ${!isCameraOn ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
-          title={!isCameraOn ? 'Turn On Camera' : 'Turn Off Camera'}
-        >
-          {!isCameraOn ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-        </button>
+        {/* Camera group */}
+        <div className="flex items-center relative group">
+          <button
+            className="mr-0.5 p-3 bg-gray-900 rounded-full border border-gray-800 shadow-md hover:bg-gray-800 focus:outline-none flex items-center justify-center group-hover:bg-gray-800"
+            style={{width: '70px', height: '48px', marginRight: '-16px', zIndex: 0, position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)'}}
+            onClick={onShowCameraDropdown}
+            tabIndex={0}
+          >
+            <MoreVertical className="w-5 h-5 text-gray-400" style={{marginLeft: '-9px'}} />
+          </button>
+          <button
+            onClick={onToggleCamera}
+            className={`p-3 rounded-full transition-all duration-200 ${!isCameraOn ? 'bg-red-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
+            title={!isCameraOn ? 'Turn On Camera' : 'Turn Off Camera'}
+            style={{position: 'relative', zIndex: 1, marginLeft: '40px'}}
+          >
+            {!isCameraOn ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+          </button>
+          {showCameraDropdown && cameraDevices.length > 0 && (
+            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-800 border border-gray-600 rounded shadow-lg z-50 min-w-[160px]">
+              {cameraDevices.map((dev) => (
+                <div key={dev.deviceId} className="px-4 py-2 text-white hover:bg-gray-700 cursor-pointer text-sm border-b border-gray-700 last:border-b-0">{dev.label || 'Camera'}</div>
+              ))}
+            </div>
+          )}
+        </div>
         {/* CC Button for subtitles */}
         <button
           onClick={onToggleCC}

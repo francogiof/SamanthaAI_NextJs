@@ -1299,12 +1299,16 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         audioEnabled={audioEnabled}
         isListening={isListening}
         isCameraOn={isCameraOn}
+        micDevices={micDevices}
+        cameraDevices={cameraDevices}
+        showMicDropdown={showMicDropdown}
+        showCameraDropdown={showCameraDropdown}
         onToggleAudio={toggleAudio}
         onMicButton={handleMicButton}
         onToggleCamera={toggleCamera}
-        onEndCall={endCall}
         onShowMicDropdown={() => setShowMicDropdown((v) => !v)}
-        showMicDropdown={showMicDropdown}
+        onShowCameraDropdown={() => setShowCameraDropdown((v) => !v)}
+        onEndCall={endCall}
         onToggleCC={() => setCCEnabled((v) => !v)}
         ccEnabled={ccEnabled}
       />
