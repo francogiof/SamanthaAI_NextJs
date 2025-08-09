@@ -24,16 +24,16 @@ const ScreeningSidebarToggle: React.FC<ScreeningSidebarToggleProps> = ({ showSid
     }
   }, [showSidebar, currentStep]);
 
-  // Arrow icon for dynamic direction
+  // Use a modern slide icon from lucide-react
   const ArrowIcon = showSidebar
-    ? <span className="inline-block transform rotate-180 transition-transform duration-300">▶</span>
-    : <span className="inline-block transition-transform duration-300">▶</span>;
+    ? <PanelRightClose className="w-6 h-6" />
+    : <PanelRightOpen className="w-6 h-6" />;
 
   return (
     <>
-      {/* Toggle button, linked to the top of the sidebar, moves with sidebar */}
+      {/* Toggle button, always visible at the edge of the sidebar or screen */}
       <button
-        className={`fixed top-8 right-0 z-50 bg-gray-800 hover:bg-gray-700 text-white rounded-l-full rounded-r-none p-4 shadow-lg transition-all duration-200 flex items-center justify-center focus:outline-none border-l border-gray-700 ${showSidebar ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-8 z-50 bg-gray-800 hover:bg-gray-700 text-white rounded-l-full rounded-r-none p-4 shadow-lg transition-all duration-200 flex items-center justify-center focus:outline-none border-l border-gray-700`}
         style={{
           boxShadow: '0 2px 12px rgba(0,0,0,0.25)',
           borderTopRightRadius: 0,
