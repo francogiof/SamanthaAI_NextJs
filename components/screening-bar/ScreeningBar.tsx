@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Volume2, VolumeX, MoreVertical, Phone, PanelRightClose, PanelRightOpen, Captions, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 
 interface ScreeningBarProps {
@@ -147,10 +147,48 @@ interface SubtitlesOverlayProps {
 }
 
 export const SubtitlesOverlay: React.FC<SubtitlesOverlayProps> = ({ messages, ccEnabled }) => {
-  if (!ccEnabled || !messages || messages.length === 0) return null;
+  const [displayedAgent, setDisplayedAgent] = useState<string>("");
+  const [agentRevealIdx, setAgentRevealIdx] = useState<number>(0);
+  const lastAgentMsgRef = useRef<string>("");
+  const revealTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Show the last 2 lines (minimalist, not too tall)
+  // Find the last 2 messages
   const recent = messages.slice(-2);
+  const lastAgentMsg = [...messages].reverse().find(m => m.sender === 'agent');
+
+  // Reveal agent text word by word, with random delay per word (mean ~200ms)
+  useEffect(() => {
+    if (!ccEnabled || !lastAgentMsg) return;
+    if (lastAgentMsg.content !== lastAgentMsgRef.current) {
+      // New agent message, start reveal
+      setDisplayedAgent("");
+      setAgentRevealIdx(0);
+      lastAgentMsgRef.current = lastAgentMsg.content;
+    }
+    const words = lastAgentMsg.content.split(/(\s+)/); // keep spaces
+    if (agentRevealIdx < words.length) {
+      if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
+      // Random delay between 150ms and 250ms, mean ~200ms
+      const delay = 100 + Math.floor(Math.random() * 200); // 135-235ms
+      revealTimeoutRef.current = setTimeout(() => {
+        setAgentRevealIdx(idx => idx + 1);
+        setDisplayedAgent(words.slice(0, agentRevealIdx + 1).join(""));
+      }, delay);
+    }
+    return () => {
+      if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
+    };
+  }, [lastAgentMsg, agentRevealIdx, ccEnabled]);
+
+  // Compose the lines to show: candidate lines are always full, agent line is revealed
+  const lines = recent.map((msg, i) => {
+    if (msg.sender === 'agent' && msg === lastAgentMsg) {
+      return { ...msg, content: displayedAgent };
+    }
+    return msg;
+  });
+
+  if (!ccEnabled || !messages || messages.length === 0) return null;
 
   return (
     <div
@@ -161,26 +199,26 @@ export const SubtitlesOverlay: React.FC<SubtitlesOverlayProps> = ({ messages, cc
         alignItems: 'center',
         justifyContent: 'flex-end',
         pointerEvents: 'none',
-        bottom: '100px', // Place just above the bottom bar (bar is 64px + 20px gap)
+        bottom: '100px',
       }}
     >
       <div
         className="flex flex-col gap-1 items-center w-full"
-        style={{ maxWidth: '1600px', minWidth: 0 }} // Expand horizontal capacity
+        style={{ maxWidth: '1600px', minWidth: 0 }}
       >
-        {recent.map((msg, i) => (
+        {lines.map((msg, i) => (
           <div
             key={i}
             className={`px-6 py-2 rounded-lg text-base md:text-lg font-medium bg-black bg-opacity-70 text-white subtitle-line-minimalist ${
               msg.sender === 'agent' ? 'border-l-2 border-blue-400' : 'border-l-2 border-green-400'
             }`}
             style={{
-              maxWidth: '96vw', // Use almost full width
+              maxWidth: '96vw',
               minWidth: 0,
               margin: '0 auto',
               textAlign: 'center',
               wordBreak: 'break-word',
-              opacity: 1 - (recent.length - 1 - i) * 0.3,
+              opacity: 1 - (lines.length - 1 - i) * 0.3,
               boxShadow: '0 2px 8px #0006',
               pointerEvents: 'none',
               marginBottom: 2,
