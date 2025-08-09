@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { User, MessageCircle, Share2, Mic, MicOff, Video, VideoOff, Phone, Volume2, VolumeX, MoreVertical, Clock, PanelRightOpen, PanelRightClose } from 'lucide-react';
 import './screening-interface.css';
 import { Card } from "./ui/card";
-import { ScreeningBar, ScreeningSidebarToggle } from './screening-bar/ScreeningBar';
+import { ScreeningBar, ScreeningSidebarToggle, SubtitlesOverlay, defaultCCEnabled } from './screening-bar/ScreeningBar';
 
 interface ScreeningInterfaceProps {
   requirementId: string;
@@ -989,7 +989,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const [showSidebar, setShowSidebar] = useState(true); // Sidebar visibility
 
   // Add state for CC (subtitles)
-  const [ccEnabled, setCCEnabled] = useState<boolean>(false);
+  const [ccEnabled, setCCEnabled] = useState<boolean>(defaultCCEnabled);
 
   if (!isConnected) {
     return (
@@ -1315,14 +1315,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       <ScreeningSidebarToggle showSidebar={showSidebar} onToggleSidebar={() => setShowSidebar((v) => !v)} />
 
       {/* Subtitles/CC overlay (show if ccEnabled) */}
-      {ccEnabled && (
-        <div className="fixed bottom-32 right-8 z-50 bg-black bg-opacity-80 text-white px-6 py-3 rounded-lg shadow-xl text-lg max-w-xl" style={{ pointerEvents: 'none' }}>
-          {/* Show the last agent message as subtitles */}
-          {messages.length > 0 && messages[messages.length - 1].sender === 'agent' && (
-            <span>{messages[messages.length - 1].content}</span>
-          )}
-        </div>
-      )}
+      <SubtitlesOverlay messages={messages} ccEnabled={ccEnabled} />
     </div>
   );
 }

@@ -131,3 +131,78 @@ export const ScreeningSidebarToggle: React.FC<{ showSidebar: boolean; onToggleSi
     {showSidebar ? <PanelRightClose className="w-6 h-6" /> : <PanelRightOpen className="w-6 h-6" />}
   </button>
 );
+
+// Default CC enabled state (to be imported in parent)
+export const defaultCCEnabled = true;
+
+// SubtitlesOverlay component
+interface Subtitle {
+  sender: 'agent' | 'candidate';
+  text: string;
+}
+
+interface SubtitlesOverlayProps {
+  messages: { sender: 'agent' | 'candidate'; content: string }[];
+  ccEnabled: boolean;
+}
+
+export const SubtitlesOverlay: React.FC<SubtitlesOverlayProps> = ({ messages, ccEnabled }) => {
+  if (!ccEnabled || !messages || messages.length === 0) return null;
+
+  // Show the last 2 lines (minimalist, not too tall)
+  const recent = messages.slice(-2);
+
+  return (
+    <div
+      className="fixed left-1/2 z-50 flex flex-col items-center w-full pointer-events-none select-none"
+      style={{
+        transform: 'translateX(-50%)',
+        maxWidth: '100vw',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        pointerEvents: 'none',
+        bottom: '100px', // Place just above the bottom bar (bar is 64px + 20px gap)
+      }}
+    >
+      <div
+        className="flex flex-col gap-1 items-center w-full"
+        style={{ maxWidth: '1600px', minWidth: 0 }} // Expand horizontal capacity
+      >
+        {recent.map((msg, i) => (
+          <div
+            key={i}
+            className={`px-6 py-2 rounded-lg text-base md:text-lg font-medium bg-black bg-opacity-70 text-white subtitle-line-minimalist ${
+              msg.sender === 'agent' ? 'border-l-2 border-blue-400' : 'border-l-2 border-green-400'
+            }`}
+            style={{
+              maxWidth: '96vw', // Use almost full width
+              minWidth: 0,
+              margin: '0 auto',
+              textAlign: 'center',
+              wordBreak: 'break-word',
+              opacity: 1 - (recent.length - 1 - i) * 0.3,
+              boxShadow: '0 2px 8px #0006',
+              pointerEvents: 'none',
+              marginBottom: 2,
+            }}
+          >
+            <span className={msg.sender === 'agent' ? 'text-blue-200' : 'text-green-200'}>
+              {msg.content}
+            </span>
+          </div>
+        ))}
+      </div>
+      <style jsx global>{`
+        .subtitle-line-minimalist {
+          animation: subtitle-fade-in 0.3s cubic-bezier(0.4,0,0.2,1);
+          max-width: 96vw;
+          min-width: 0;
+        }
+        @keyframes subtitle-fade-in {
+          from { opacity: 0; transform: translateY(10px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      `}</style>
+    </div>
+  );
+};
