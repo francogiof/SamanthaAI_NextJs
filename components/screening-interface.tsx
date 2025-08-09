@@ -1067,14 +1067,10 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
 
       {/* Main Content */}
       <div className="flex-1 flex relative">
-        {/* Vertical Step Progress Bar */}
-        <div className="flex flex-col items-center justify-center w-28 bg-gray-900/80 border-r border-gray-800">
-          <VerticalStepProgressBar currentStep={currentStep} />
-        </div>
         {/* Video Area - Dynamic width based on sidebar state */}
         <div className={`transition-all duration-500 ease-in-out ${showSidebar ? 'w-[calc(100%-24rem)]' : 'w-full'}`}>
           <div className="h-full">
-            <div className="grid grid-cols-1 h-full">
+            <div className="grid grid-cols-2 h-full"> {/* Restore horizontal order: agent | candidate */}
               {/* Agent Video */}
               <div className="bg-gray-800 flex flex-col items-center justify-center relative">
                 <div className={`blob mb-4 transition-all duration-[2000ms] ${shouldMorphBlob ? 'blob-animate' : ''} ${isBlobResetting ? 'blob-resetting' : ''}`}></div>
@@ -1185,6 +1181,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
             </div>
           </div>
         </div>
+        {/* No left progress bar here! */}
       </div>
 
       {/* Bottom Controls */}
