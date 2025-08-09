@@ -10,9 +10,13 @@ interface ScreeningSidebarToggleProps {
 const ScreeningSidebarToggle: React.FC<ScreeningSidebarToggleProps> = ({ showSidebar, onToggleSidebar }) => {
   // Scroll to the current step in the vertical bar when sidebar opens or step changes
   const progressBarRef = React.useRef<HTMLDivElement>(null);
-  const [currentStep, setCurrentStep] = React.useState<number>(0);
-
-  // Expose a way to update currentStep from parent if needed (optional, for future extensibility)
+  // Accept currentStep and totalSteps as props in the future for real progress
+  // For now, get from localStorage or default to 0 for demo
+  const [currentStep, setCurrentStep] = React.useState<number>(
+    typeof window !== 'undefined' && localStorage.getItem('currentStep')
+      ? parseInt(localStorage.getItem('currentStep') || '0', 10)
+      : 0
+  );
 
   React.useEffect(() => {
     if (showSidebar && progressBarRef.current) {
@@ -24,6 +28,7 @@ const ScreeningSidebarToggle: React.FC<ScreeningSidebarToggleProps> = ({ showSid
     }
   }, [showSidebar, currentStep]);
 
+  // Make the sidebar bigger and the progress bar fill the sidebar
   return (
     <>
       <button
@@ -34,10 +39,17 @@ const ScreeningSidebarToggle: React.FC<ScreeningSidebarToggleProps> = ({ showSid
       >
         {showSidebar ? <PanelRightClose className="w-6 h-6" /> : <PanelRightOpen className="w-6 h-6" />}
       </button>
-      {/* Render the vertical progress bar inside the sidebar when open */}
       {showSidebar && (
-        <div ref={progressBarRef} className="fixed top-24 right-0 h-[calc(100vh-6rem)] w-32 flex flex-col items-center bg-gray-900/95 border-l border-gray-800 z-40 shadow-2xl pt-8 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
-          <VerticalStepProgressBar currentStep={currentStep} onStepClick={setCurrentStep} />
+        <div
+          ref={progressBarRef}
+          className="fixed top-0 right-0 h-full w-64 flex flex-col items-center bg-gray-900/95 border-l border-gray-800 z-40 shadow-2xl pt-16 pb-8 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900"
+        >
+          <div className="w-full h-full flex-1 px-6 flex items-center justify-center">
+            <VerticalStepProgressBar
+              currentStep={currentStep}
+              onStepClick={setCurrentStep}
+            />
+          </div>
         </div>
       )}
     </>
