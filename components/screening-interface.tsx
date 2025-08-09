@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { User, MessageCircle, Share2, Mic, MicOff, Video, VideoOff, Phone, Volume2, VolumeX, MoreVertical, Clock, PanelRightOpen, PanelRightClose } from 'lucide-react';
+import { User, MessageCircle, Share2, Mic, MicOff, Video, VideoOff, Phone, Volume2, VolumeX, MoreVertical, Clock } from 'lucide-react';
 import './screening-interface.css';
 import { Card } from "./ui/card";
-import { ScreeningBar, ScreeningSidebarToggle, SubtitlesOverlay, defaultCCEnabled } from './screening-bar/ScreeningBar';
+import { ScreeningBar, SubtitlesOverlay, defaultCCEnabled } from './screening-bar/ScreeningBar';
+import ScreeningSidebarToggle from './screening-bar/ScreeningSidebarToggle';
+import ScreeningChatProgress from './screening-bar/ScreeningChatProgress';
+import { VerticalStepProgressBar } from './screening-bar/VerticalStepProgressBar';
 
 interface ScreeningInterfaceProps {
   requirementId: string;
@@ -1064,17 +1067,20 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
 
       {/* Main Content */}
       <div className="flex-1 flex relative">
+        {/* Vertical Step Progress Bar */}
+        <div className="flex flex-col items-center justify-center w-28 bg-gray-900/80 border-r border-gray-800">
+          <VerticalStepProgressBar currentStep={currentStep} />
+        </div>
         {/* Video Area - Dynamic width based on sidebar state */}
         <div className={`transition-all duration-500 ease-in-out ${showSidebar ? 'w-[calc(100%-24rem)]' : 'w-full'}`}>
           <div className="h-full">
-            <div className="grid grid-cols-2 h-full">
+            <div className="grid grid-cols-1 h-full">
               {/* Agent Video */}
               <div className="bg-gray-800 flex flex-col items-center justify-center relative">
                 <div className={`blob mb-4 transition-all duration-[2000ms] ${shouldMorphBlob ? 'blob-animate' : ''} ${isBlobResetting ? 'blob-resetting' : ''}`}></div>
                 <h3 className="text-white font-semibold">Sarah (Interviewer)</h3>
                 <p className="text-gray-400 text-sm">Screening Agent</p>
               </div>
-
               {/* Candidate Video */}
               <div className="bg-gray-800 flex flex-col items-center justify-center relative overflow-hidden candidate-video-container">
                 {/* Auto-microphone indicator */}
@@ -1178,106 +1184,6 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Chat Area - Now part of the flex layout */}
-        <div
-          className={`transition-all duration-500 ease-in-out ${showSidebar ? 'w-96' : 'w-0'} overflow-hidden`}
-        >
-          <Card className="flex flex-col h-full rounded-xl border border-gray-700 shadow-xl bg-gray-900/95 p-0">
-            {/* Chat Header */}
-            <div className="p-4 border-b border-gray-700 flex-shrink-0">
-              <h3 className="text-white font-semibold flex items-center">
-                <MessageCircle className="w-5 h-5 mr-2" />
-                Interview Chat
-              </h3>
-              <div className="mt-2">
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${screeningProgress}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-400 mt-1">Progress: {screeningProgress}%</p>
-              </div>
-              {/* Step Completion Indicators */}
-              {allStepsWithStatus.length > 0 && (
-                <div className="mt-3">
-                  <p className="text-xs text-gray-400 mb-2">Question Status:</p>
-                  <div className="grid grid-cols-5 gap-1">
-                    {allStepsWithStatus.map((step, index) => (
-                      <div
-                        key={step.step_id}
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold step-indicator ${
-                          step.status === 'completed' ? 'bg-green-500 text-white completed' :
-                          step.status === 'partial' ? 'bg-yellow-500 text-white partial' :
-                          step.status === 'current' ? 'bg-blue-500 text-white current' :
-                          'bg-gray-500 text-white'
-                        }`}
-                        title={`${step.step_name}: ${step.status}`}
-                      >
-                        {index + 1}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-2 text-xs">
-                    <div className="flex items-center space-x-1">
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                      <span className="text-gray-300">Completed</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                      <span className="text-gray-300">Partial</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                      <span className="text-gray-300">Current</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
-                      <span className="text-gray-300">No Response</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 max-h-96">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.sender === 'agent' ? 'justify-start' : 'justify-end'}`}
-                >
-                  <div
-                    className={`max-w-xs p-3 rounded-lg ${
-                      message.sender === 'agent'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-700 text-white'
-                    }`}
-                  >
-                    <p className="text-sm break-words">{message.content}</p>
-                    <p className="text-xs opacity-70 mt-1">
-                      {message.timestamp.toLocaleTimeString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-              {agentTyping && (
-                <div className="flex justify-start">
-                  <div className="bg-blue-600 text-white p-3 rounded-lg">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-            {/* Input Area */}
-            {/* Removed input area for typing responses, as the interview is conversational (voice only) */}
-          </Card>
         </div>
       </div>
 
