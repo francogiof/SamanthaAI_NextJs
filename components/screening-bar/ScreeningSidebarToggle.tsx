@@ -1,19 +1,31 @@
 import React from 'react';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { VerticalStepProgressBar } from './VerticalStepProgressBar';
+import { FileText, Info, Users, Code, Award } from 'lucide-react';
 
 interface ScreeningSidebarToggleProps {
   showSidebar: boolean;
   onToggleSidebar: () => void;
+  steps: Array<{ step_name: string; structure: string; icon?: React.ReactNode }>;
+  currentStep: number;
+  onStepClick: (step: number) => void;
 }
 
-const ScreeningSidebarToggle: React.FC<ScreeningSidebarToggleProps> = ({ showSidebar, onToggleSidebar }) => {
+const hardcodedSteps = [
+  { step_name: 'CV Upload & Profile Creation', structure: 'cv_upload', icon: <FileText className="w-5 h-5" /> },
+  { step_name: 'Screening & Role Introduction', structure: 'role_intro', icon: <Info className="w-5 h-5" /> },
+  { step_name: 'Behavioral Interview', structure: 'behavioral', icon: <Users className="w-5 h-5" /> },
+  { step_name: 'Technical Interview', structure: 'technical', icon: <Code className="w-5 h-5" /> },
+  { step_name: 'Mini Project Challenge', structure: 'project', icon: <Award className="w-5 h-5" /> },
+];
+
+const ScreeningSidebarToggle: React.FC<Omit<ScreeningSidebarToggleProps, 'steps'> & { steps?: Array<{ step_name: string; structure: string; icon?: React.ReactNode }> }> = ({ showSidebar, onToggleSidebar, steps, currentStep, onStepClick }) => {
   const progressBarRef = React.useRef<HTMLDivElement>(null);
-  const [currentStep, setCurrentStep] = React.useState<number>(
-    typeof window !== 'undefined' && localStorage.getItem('currentStep')
-      ? parseInt(localStorage.getItem('currentStep') || '0', 10)
-      : 0
-  );
+
+  const stepsWithIcons = (steps && steps.length > 0 ? steps : hardcodedSteps).map((step, idx) => ({
+    ...step,
+    icon: step.icon || hardcodedSteps[idx % hardcodedSteps.length].icon
+  }));
 
   React.useEffect(() => {
     if (showSidebar && progressBarRef.current) {
@@ -24,24 +36,14 @@ const ScreeningSidebarToggle: React.FC<ScreeningSidebarToggleProps> = ({ showSid
     }
   }, [showSidebar, currentStep]);
 
-  // Use a modern slide icon from lucide-react
-  const ArrowIcon = showSidebar
-    ? <PanelRightClose className="w-6 h-6" />
-    : <PanelRightOpen className="w-6 h-6" />;
+  const ArrowIcon = showSidebar ? <PanelRightClose size={24} /> : <PanelRightOpen size={24} />;
 
   return (
     <>
-      {/* Toggle button, always visible at the edge of the sidebar or screen */}
       <button
-        className={`fixed top-8 z-50 bg-gray-800 hover:bg-gray-700 text-white rounded-l-full rounded-r-none p-4 shadow-lg transition-all duration-200 flex items-center justify-center focus:outline-none border-l border-gray-700`}
+        className={`fixed top-1/2 right-0 z-50 p-2 rounded-l-lg bg-gray-900 border border-gray-800 shadow-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500`}
         style={{
-          boxShadow: '0 2px 12px rgba(0,0,0,0.25)',
-          borderTopRightRadius: 0,
-          borderBottomRightRadius: 0,
-          borderTopLeftRadius: '2rem',
-          borderBottomLeftRadius: '2rem',
-          right: showSidebar ? '16rem' : 0, // match sidebar width
-          top: 32,
+          transform: 'translateY(-50%)',
           transition: 'right 0.3s cubic-bezier(.4,0,.2,1), background 0.2s',
         }}
         onClick={onToggleSidebar}
@@ -56,8 +58,9 @@ const ScreeningSidebarToggle: React.FC<ScreeningSidebarToggleProps> = ({ showSid
         >
           <div className="w-full h-full flex-1 px-6 flex items-center justify-center">
             <VerticalStepProgressBar
+              steps={stepsWithIcons}
               currentStep={currentStep}
-              onStepClick={setCurrentStep}
+              onStepClick={onStepClick}
             />
           </div>
         </div>
