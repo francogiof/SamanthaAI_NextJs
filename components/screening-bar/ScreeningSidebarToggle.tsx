@@ -1,7 +1,7 @@
 import React from 'react';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { VerticalStepProgressBar } from './VerticalStepProgressBar';
-import { FileText, Info, Users, Code, Award } from 'lucide-react';
+import { FileText, Info, Users, Code, Award, User, CheckCircle } from 'lucide-react';
 
 interface ScreeningSidebarToggleProps {
   showSidebar: boolean;
@@ -11,20 +11,29 @@ interface ScreeningSidebarToggleProps {
   onStepClick: (step: number) => void;
 }
 
-const hardcodedSteps = [
-  { step_name: 'CV Upload & Profile Creation', structure: 'cv_upload', icon: <FileText className="w-5 h-5" /> },
-  { step_name: 'Screening & Role Introduction', structure: 'role_intro', icon: <Info className="w-5 h-5" /> },
-  { step_name: 'Behavioral Interview', structure: 'behavioral', icon: <Users className="w-5 h-5" /> },
-  { step_name: 'Technical Interview', structure: 'technical', icon: <Code className="w-5 h-5" /> },
-  { step_name: 'Mini Project Challenge', structure: 'project', icon: <Award className="w-5 h-5" /> },
+const structureIcons: Record<string, React.ReactNode> = {
+  'Quick start': <FileText className="w-5 h-5" />,
+  'Role explanation': <Info className="w-5 h-5" />,
+  'About you': <User className="w-5 h-5" />,
+  'Qualifications': <Award className="w-5 h-5" />,
+  'Finishing and next steps': <CheckCircle className="w-5 h-5" />,
+};
+
+const structureSteps = [
+  'Quick start',
+  'Role explanation',
+  'About you',
+  'Qualifications',
+  'Finishing and next steps',
 ];
 
 const ScreeningSidebarToggle: React.FC<Omit<ScreeningSidebarToggleProps, 'steps'> & { steps?: Array<{ step_name: string; structure: string; icon?: React.ReactNode }> }> = ({ showSidebar, onToggleSidebar, steps, currentStep, onStepClick }) => {
   const progressBarRef = React.useRef<HTMLDivElement>(null);
 
-  const stepsWithIcons = (steps && steps.length > 0 ? steps : hardcodedSteps).map((step, idx) => ({
-    ...step,
-    icon: step.icon || hardcodedSteps[idx % hardcodedSteps.length].icon
+  const stepsWithIcons = structureSteps.map((structure, idx) => ({
+    step_name: structure,
+    structure,
+    icon: structureIcons[structure] || idx + 1
   }));
 
   React.useEffect(() => {
