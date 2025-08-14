@@ -313,7 +313,7 @@ class StepByStepInterviewManager {
       let steps: InterviewStep[];
       if (hasStepName) {
         steps = db.prepare(`
-          SELECT step_id, step_order, step_name, type, focus, text, notes
+          SELECT step_id, step_order, step_name, type, focus, text, notes, structure
           FROM screening_interview_steps 
           WHERE candidate_id = ? AND requirement_id = ? 
           ORDER BY step_order
@@ -321,7 +321,7 @@ class StepByStepInterviewManager {
       } else {
         // Fallback if step_name doesn't exist
         steps = db.prepare(`
-          SELECT step_id, step_order, type, focus, text, notes
+          SELECT step_id, step_order, type, focus, text, notes, structure
           FROM screening_interview_steps 
           WHERE candidate_id = ? AND requirement_id = ? 
           ORDER BY step_order
@@ -503,4 +503,4 @@ export async function POST(req: NextRequest) {
     console.error('[API/screening/step-by-step] Error:', error);
     return NextResponse.json({ error: 'Failed to generate conversation response' }, { status: 500 });
   }
-} 
+}
