@@ -707,7 +707,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         
         const finalMessage = data.passesScreening
           ? `Congratulations! You've passed the screening with a score of ${data.score}/100. We'll be in touch for the next stage.`
-          : `Thank you for your time. Your screening score is ${data.score}/100. We'll review your application and get back to you.`;
+          : `Thank you for your time. Your screening score is ${data.score}/100. We'll review your application and get back to you.`; 
 
         addAgentMessage(finalMessage);
         playAgentSpeech(finalMessage);
@@ -1038,38 +1038,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           <span className="text-xs ml-2">min</span>
         </div>
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-300">
-            {screeningComplete && (
-              <span className="font-semibold">
-                Score: {screeningScore}/100
-              </span>
-            )}
-            {!screeningComplete && totalSteps > 0 && (
-              <span className="font-semibold">
-                Step {currentStep + 1} of {totalSteps} • {completionRate.toFixed(1)}% Complete
-              </span>
-            )}
-          </span>
-          {photosTaken > 0 && (
-            <div className="flex items-center space-x-1 text-yellow-400">
-              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-              <span className="text-xs">📸 {photosTaken}/2 photos captured</span>
-            </div>
-          )}
-          {/* Removed contextWindow and needsFollowUp UI elements */}
-          {/* Removed needsSecondChance UI element */}
-          {stepCompleted && (
-            <div className="flex items-center space-x-1 text-green-400">
-              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-              <span className="text-xs">✅ Step completed</span>
-            </div>
-          )}
-          {stepsWithNoResponse > 0 && (
-            <div className="flex items-center space-x-1 text-gray-400">
-              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-              <span className="text-xs">❌ {stepsWithNoResponse} unanswered</span>
-            </div>
-          )}
+          {/* Removed progress, photos, and step completed indicators as requested */}
         </div>
       </div>
 
