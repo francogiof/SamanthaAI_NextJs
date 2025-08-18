@@ -286,10 +286,10 @@ export default function CandidateApplicationSubdashboard() {
 		return (
 			<SidebarLayout basePath="/dashboard/candidate" items={navigationItems}>
 				<div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-					<div className="bg-white rounded-lg p-8 max-w-2xl w-full mx-4">
+					<div className="bg-gray-900 rounded-lg p-8 max-w-2xl w-full mx-4">
 						<div className="text-center mb-6">
-							<h2 className="text-2xl font-bold text-gray-900 mb-2">Interview Setup</h2>
-							<p className="text-gray-600">
+							<h2 className="text-2xl font-bold text-white mb-2">Interview Setup</h2>
+							<p className="text-gray-300">
 								Please enable your camera and microphone to continue with the interview. 
 								This interview will be recorded for transparency purposes.
 							</p>
@@ -297,9 +297,9 @@ export default function CandidateApplicationSubdashboard() {
 
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
 							{/* Camera Preview */}
-							<div className="bg-gray-100 rounded-lg p-4">
+							<div className="bg-gray-800 rounded-lg p-4">
 								<div className="flex items-center justify-between mb-3">
-									<h3 className="font-semibold text-gray-900">Camera</h3>
+									<h3 className="font-semibold text-white">Camera</h3>
 									<div className={`w-3 h-3 rounded-full ${previewCameraOn ? 'bg-green-500' : 'bg-red-500'}`}></div>
 								</div>
 								
@@ -338,9 +338,9 @@ export default function CandidateApplicationSubdashboard() {
 							</div>
 
 							{/* Microphone Preview */}
-							<div className="bg-gray-100 rounded-lg p-4">
+							<div className="bg-gray-800 rounded-lg p-4">
 								<div className="flex items-center justify-between mb-3">
-									<h3 className="font-semibold text-gray-900">Microphone</h3>
+									<h3 className="font-semibold text-white">Microphone</h3>
 									<div className={`w-3 h-3 rounded-full ${previewMicrophoneOn ? 'bg-green-500' : 'bg-red-500'}`}></div>
 								</div>
 								
