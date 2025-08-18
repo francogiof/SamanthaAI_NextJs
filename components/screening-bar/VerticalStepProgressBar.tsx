@@ -24,7 +24,7 @@ export function VerticalStepProgressBar({
 
   // Animation classes
   const activeCircleClass =
-    'border-blue-500 bg-blue-600 text-white shadow-lg animate-pulse scale-110';
+    'border-blue-500 bg-blue-600 text-white shadow-lg scale-110'; // Removed animate-pulse
   const completedCircleClass =
     'border-green-500 bg-green-600 text-white';
   const inactiveCircleClass =
@@ -64,7 +64,7 @@ export function VerticalStepProgressBar({
               </button>
               <span
                 className={`mt-2 text-xs font-semibold ${
-                  isActive ? 'text-blue-400 animate-pulse' : isCompleted ? 'text-green-400' : 'text-gray-400'
+                  isActive ? 'text-blue-400' : isCompleted ? 'text-green-400' : 'text-gray-400'
                 }`}
                 style={{ transition: 'color 0.3s cubic-bezier(.4,0,.2,1)' }}
               >
