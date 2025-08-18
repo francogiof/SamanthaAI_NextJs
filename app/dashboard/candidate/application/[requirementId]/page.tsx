@@ -169,12 +169,7 @@ export default function CandidateApplicationSubdashboard() {
 			setPreviewCameraOn(true);
 			setPreviewMicrophoneOn(true);
 			
-			if (previewVideoRef) {
-				previewVideoRef.srcObject = stream;
-				previewVideoRef.play().then(() => {
-					console.log('[ApplicationPage] ✅ Preview video playing');
-				});
-			}
+			// Do NOT set previewVideoRef.srcObject here
 			
 			// Set up audio level monitoring
 			const audioContext = new AudioContext();
@@ -264,6 +259,16 @@ export default function CandidateApplicationSubdashboard() {
 		console.log('[ApplicationPage] Moving to next stage from step:', currentStep);
 		setCurrentStep(currentStep + 1);
 	}
+
+	// Add useEffect to attach stream to video element when both are set
+	useEffect(() => {
+		if (previewVideoRef && previewStream) {
+			previewVideoRef.srcObject = previewStream;
+			previewVideoRef.play().catch((error) => {
+				console.error('[ApplicationPage] ❌ Preview video play error:', error);
+			});
+		}
+	}, [previewVideoRef, previewStream]);
 
 	// If screening interface is active, show it full screen
 	if (showScreening) {
