@@ -452,32 +452,33 @@ export default function CandidateApplicationSubdashboard() {
 					{currentStep === 1 && (
 						<div className="flex flex-col gap-6">
 							<div>
-								<h2 className="text-xl font-semibold mb-4">
+								<h2 className="text-xl font-semibold mb-4 text-white">
 									Step 2: Screening & Role Introduction
 								</h2>
-								<p className="text-muted-foreground mb-6">
+								<p className="text-gray-300 mb-6">
 									You&apos;re about to begin your screening interview with our AI agent. This session will help us understand your skills and experience better.
 								</p>
 							</div>
 
 							{screeningComplete ? (
-								<div className="bg-gray-50 rounded-lg p-6 border">
+								<div className="bg-gray-900 rounded-lg p-6 border border-gray-800">
 									<div className="flex items-center justify-between mb-4">
-										<h3 className="text-lg font-semibold text-green-600">
+										<h3 className="text-lg font-semibold text-green-400">
 											Screening Completed!
 										</h3>
 										<div className="flex items-center gap-2">
-											<span className="font-semibold">
+											<span className="font-semibold text-white">
 												Score: {screeningScore}/100
 											</span>
 											<span className={`px-2 py-1 rounded text-xs ${
-												passesScreening ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-											}`}>
+												passesScreening ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'
+											}`}
+											>
 												{passesScreening ? 'PASSED' : 'REVIEW'}
 											</span>
 										</div>
 									</div>
-									<p className="text-muted-foreground mb-4">
+									<p className="text-gray-400 mb-4">
 										{passesScreening 
 											? "Great job! You&apos;ve successfully completed the screening interview. You can now proceed to the next stage."
 											: "Thank you for completing the screening interview. We&apos;ll review your responses and get back to you soon."
@@ -494,34 +495,32 @@ export default function CandidateApplicationSubdashboard() {
 								</div>
 							) : (
 								<div className="space-y-4">
-									<div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+									<div className="bg-gray-900 rounded-lg p-6 border border-blue-900">
 										<div className="flex items-center gap-4 mb-4">
 											<div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
 												<Video className="w-6 h-6 text-white" />
 											</div>
 											<div>
-												<h3 className="text-lg font-semibold">Ready for Your Screening Interview?</h3>
-												<p className="text-muted-foreground">
+												<h3 className="text-lg font-semibold text-white">Ready for Your Screening Interview?</h3>
+												<p className="text-gray-300">
 													Join the virtual interview room to meet with our AI screening agent
 												</p>
 											</div>
 										</div>
-										
 										<div className="space-y-3 mb-6">
 											<div className="flex items-center gap-3">
 												<div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-												<span className="text-sm">15-20 minute interactive session</span>
+												<span className="text-sm text-gray-300">15-20 minute interactive session</span>
 											</div>
 											<div className="flex items-center gap-3">
 												<div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-												<span className="text-sm">Role-specific questions and requirements review</span>
+												<span className="text-sm text-gray-300">Role-specific questions and requirements review</span>
 											</div>
 											<div className="flex items-center gap-3">
 												<div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-												<span className="text-sm">Real-time chat and video simulation</span>
+												<span className="text-sm text-gray-300">Real-time chat and video simulation</span>
 											</div>
 										</div>
-
 										<button
 											className="w-full bg-blue-600 text-white rounded-lg px-6 py-3 font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
 											onClick={handleJoinMeeting}
@@ -533,11 +532,11 @@ export default function CandidateApplicationSubdashboard() {
 									</div>
 
 									{/* Generate Questions Button */}
-									<div className="bg-green-50 rounded-lg p-4 border border-green-200">
+									<div className="bg-gray-900 rounded-lg p-4 border border-green-900">
 										<div className="flex items-center justify-between">
 											<div>
-												<h4 className="font-semibold text-green-800">Generate Interview Questions</h4>
-												<p className="text-sm text-green-600">
+												<h4 className="font-semibold text-green-400">Generate Interview Questions</h4>
+												<p className="text-sm text-green-300">
 													Create AI-powered screening questions for this role
 												</p>
 											</div>
