@@ -41,8 +41,14 @@ export function VerticalStepProgressBar({
         {steps.map((step, idx) => {
           const isActive = idx === activeIdx;
           const isCompleted = completedStructures.includes(step.structure);
-          // Birthday celebration effect for each step when moved on
-          const celebrationClass = isActive ? 'animate-birthday' : '';
+          // Achievement ring/glow effect for completed steps
+          // Stronger effect for the final step if completed
+          const isFinalStep = idx === steps.length - 1;
+          const achievementClass = isCompleted
+            ? isFinalStep
+              ? 'achievement-final-ring'
+              : 'achievement-ring'
+            : '';
           const transitionClass = isActive || isCompleted ? 'transition-transform duration-300 scale-105' : 'transition-transform duration-200';
           return (
             <li
@@ -57,29 +63,16 @@ export function VerticalStepProgressBar({
                     : isCompleted
                     ? completedCircleClass
                     : inactiveCircleClass
-                } ${transitionClass} ${celebrationClass}`}
+                } ${transitionClass} ${achievementClass}`}
                 style={{ outline: 'none', transition: 'transform 0.3s cubic-bezier(.4,0,.2,1), box-shadow 0.2s', position: 'relative' }}
                 aria-label={step.structure || step.step_name}
                 onClick={() => onStepClick && onStepClick(idx)}
                 disabled={typeof onStepClick !== 'function'}
               >
                 {step.icon ? step.icon : idx + 1}
-                {/* Birthday confetti effect for active step */}
-                {isActive && (
-                  <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" className="z-10">
-                      <g>
-                        <circle cx="12" cy="12" r="2.5" fill="#fbbf24" />
-                        <circle cx="32" cy="12" r="2.5" fill="#60a5fa" />
-                        <circle cx="12" cy="32" r="2.5" fill="#f472b6" />
-                        <circle cx="32" cy="32" r="2.5" fill="#34d399" />
-                        <rect x="20" y="4" width="4" height="8" rx="2" fill="#fbbf24" />
-                        <rect x="4" y="20" width="8" height="4" rx="2" fill="#60a5fa" />
-                        <rect x="32" y="20" width="8" height="4" rx="2" fill="#f472b6" />
-                        <rect x="20" y="32" width="4" height="8" rx="2" fill="#34d399" />
-                      </g>
-                    </svg>
-                  </span>
+                {/* Achievement ring/glow effect for completed steps */}
+                {isCompleted && (
+                  <span className={`absolute inset-0 pointer-events-none rounded-full ${isFinalStep ? 'achievement-final-ring-visual' : 'achievement-ring-visual'}`}></span>
                 )}
               </button>
               <span
@@ -96,35 +89,29 @@ export function VerticalStepProgressBar({
       </ol>
       {/* Add minimal achievement and celebration animations */}
       <style jsx>{`
-        @keyframes achievement {
+        @keyframes achievement-ring {
           0% { box-shadow: 0 0 0 0 #34d399; }
           60% { box-shadow: 0 0 0 8px #34d39933; }
           100% { box-shadow: 0 0 0 0 #34d399; }
         }
-        .animate-achievement {
-          animation: achievement 0.8s ease;
+        .achievement-ring {
+          animation: achievement-ring 0.8s ease;
         }
-        @keyframes celebration {
-          0% { transform: scale(1) rotate(0deg); }
-          20% { transform: scale(1.15) rotate(-8deg); }
-          40% { transform: scale(1.1) rotate(8deg); }
-          60% { transform: scale(1.2) rotate(-8deg); }
-          80% { transform: scale(1.1) rotate(8deg); }
-          100% { transform: scale(1) rotate(0deg); }
+        .achievement-ring-visual {
+          box-shadow: 0 0 0 8px #34d39933, 0 0 8px 2px #34d39999;
+          transition: box-shadow 0.4s cubic-bezier(.4,0,.2,1);
         }
-        .animate-celebration {
-          animation: celebration 1.2s cubic-bezier(.4,0,.2,1);
+        @keyframes achievement-final-ring {
+          0% { box-shadow: 0 0 0 0 #3b82f6; }
+          60% { box-shadow: 0 0 0 12px #3b82f633; }
+          100% { box-shadow: 0 0 0 0 #3b82f6; }
         }
-        @keyframes birthday {
-          0% { transform: scale(1) rotate(0deg); opacity: 1; }
-          20% { transform: scale(1.15) rotate(-8deg); opacity: 1; }
-          40% { transform: scale(1.1) rotate(8deg); opacity: 1; }
-          60% { transform: scale(1.2) rotate(-8deg); opacity: 1; }
-          80% { transform: scale(1.1) rotate(8deg); opacity: 1; }
-          100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        .achievement-final-ring {
+          animation: achievement-final-ring 1s ease;
         }
-        .animate-birthday {
-          animation: birthday 1.2s cubic-bezier(.4,0,.2,1);
+        .achievement-final-ring-visual {
+          box-shadow: 0 0 0 12px #3b82f633, 0 0 12px 3px #3b82f699;
+          transition: box-shadow 0.5s cubic-bezier(.4,0,.2,1);
         }
       `}</style>
     </div>
