@@ -1200,6 +1200,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         allStepsWithStatus={allStepsWithStatus}
         currentStep={currentStep}
         onStepClick={(idx) => setCurrentStep(idx)}
+        floatingToggle
       />
 
       {/* Subtitles/CC overlay (show if ccEnabled) */}
