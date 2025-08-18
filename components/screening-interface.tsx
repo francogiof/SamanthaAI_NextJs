@@ -93,7 +93,19 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const sessionIdRef = useRef<string | null>(null);
   const firstAgentMessageAdded = useRef(false);
 
-  // Remove agentSlides array and all slide navigation/rendering code
+  // Sidebar steps (hardcoded structure steps and icons)
+  const sidebarSteps = [
+    { step_name: 'Quick start', structure: 'Quick start' },
+    { step_name: 'Role explanation', structure: 'Role explanation' },
+    { step_name: 'About you', structure: 'About you' },
+    { step_name: 'Qualifications', structure: 'Qualifications' },
+    { step_name: 'Finishing and next steps', structure: 'Finishing and next steps' },
+  ];
+
+  // Find current structure from allStepsWithStatus and currentStep
+  // Instead of using currentStep, find the first incomplete step and use its structure
+  const currentStepObj = allStepsWithStatus.find(s => s.status !== 'completed') || allStepsWithStatus[allStepsWithStatus.length - 1] || null;
+  const currentStructure = currentStepObj?.structure || '';
 
   useEffect(() => {
     console.log('[ScreeningInterface] Component mounted with props:', { requirementId, userId });
@@ -756,10 +768,6 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     onComplete(screeningScore || 0, passesScreening || false);
   };
 
-  // Remove all other hardcoded agent messages/slides
-
-  // Remove nextSlide and prevSlide functions
-
   const startCamera = async () => {
     try {
       console.log('[ScreeningInterface] 🎥 Starting camera...');
@@ -1215,7 +1223,15 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         onToggleCC={() => setCCEnabled((v) => !v)}
         ccEnabled={ccEnabled}
       />
-      <ScreeningSidebarToggle showSidebar={showSidebar} onToggleSidebar={() => setShowSidebar((v) => !v)} />
+      <ScreeningSidebarToggle
+        showSidebar={showSidebar}
+        onToggleSidebar={() => setShowSidebar((v) => !v)}
+        steps={sidebarSteps}
+        currentStructure={currentStructure}
+        allStepsWithStatus={allStepsWithStatus}
+        currentStep={currentStep}
+        onStepClick={(idx) => setCurrentStep(idx)}
+      />
 
       {/* Subtitles/CC overlay (show if ccEnabled) */}
       <SubtitlesOverlay messages={messages} ccEnabled={ccEnabled} />

@@ -9,6 +9,7 @@ interface InterviewStep {
   focus?: string;
   text: string;
   notes?: string;
+  structure?: string; // Add structure field to match DB and CSV
 }
 
 interface StepResponse {
@@ -143,7 +144,8 @@ class StepByStepInterviewManager {
       return {
         step_id: step.step_id,
         step_name: step.step_name,
-        status
+        status,
+        structure: step.structure // Now safe to return structure
       };
     });
   }

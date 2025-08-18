@@ -27,7 +27,11 @@ const structureSteps = [
   'Finishing and next steps',
 ];
 
-const ScreeningSidebarToggle: React.FC<Omit<ScreeningSidebarToggleProps, 'steps'> & { steps?: Array<{ step_name: string; structure: string; icon?: React.ReactNode }> }> = ({ showSidebar, onToggleSidebar, steps, currentStep, onStepClick }) => {
+const ScreeningSidebarToggle: React.FC<Omit<ScreeningSidebarToggleProps, 'steps'> & {
+  steps?: Array<{ step_name: string; structure: string; icon?: React.ReactNode }>,
+  currentStructure?: string,
+  allStepsWithStatus?: Array<{ step_id: number; step_name: string; status: string; structure?: string }>
+}> = ({ showSidebar, onToggleSidebar, steps, currentStep, currentStructure, allStepsWithStatus, onStepClick }) => {
   const progressBarRef = React.useRef<HTMLDivElement>(null);
 
   const stepsWithIcons = structureSteps.map((structure, idx) => ({
@@ -35,6 +39,13 @@ const ScreeningSidebarToggle: React.FC<Omit<ScreeningSidebarToggleProps, 'steps'
     structure,
     icon: structureIcons[structure] || idx + 1
   }));
+
+  // Find which structure is currently active and which are completed
+  const completedStructures = allStepsWithStatus
+    ? allStepsWithStatus.filter(s => s.status === 'completed').map(s => s.structure)
+    : [];
+
+  const activeStructure = currentStructure;
 
   React.useEffect(() => {
     if (showSidebar && progressBarRef.current) {
@@ -68,7 +79,8 @@ const ScreeningSidebarToggle: React.FC<Omit<ScreeningSidebarToggleProps, 'steps'
           <div className="w-full h-full flex-1 px-6 flex items-center justify-center">
             <VerticalStepProgressBar
               steps={stepsWithIcons}
-              currentStep={currentStep}
+              currentStructure={activeStructure}
+              allStepsWithStatus={allStepsWithStatus}
               onStepClick={onStepClick}
             />
           </div>
