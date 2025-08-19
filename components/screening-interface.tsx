@@ -4,10 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { User, MessageCircle, Share2, Mic, MicOff, Video, VideoOff, Phone, Volume2, VolumeX, MoreVertical, Clock } from 'lucide-react';
 import './screening-interface.css';
 import { Card } from "./ui/card";
-import { ScreeningBar, SubtitlesOverlay, defaultCCEnabled } from './screening-bar/ScreeningBar';
-import ScreeningSidebarToggle from './screening-bar/ScreeningSidebarToggle';
-import ScreeningChatProgress from './screening-bar/ScreeningChatProgress';
-import { VerticalStepProgressBar } from './screening-bar/VerticalStepProgressBar';
+import { ScreeningBar, SubtitlesOverlay, defaultCCEnabled } from './screening-interview/screening-bar/ScreeningBar';
+import ScreeningSidebarToggle from './screening-interview/screening-bar/ScreeningSidebarToggle';
+import ScreeningChatProgress from './screening-interview/screening-bar/ScreeningChatProgress';
+import { VerticalStepProgressBar } from './screening-interview/screening-bar/VerticalStepProgressBar';
 
 interface ScreeningInterfaceProps {
   requirementId: string;
@@ -54,7 +54,6 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const [totalSteps, setTotalSteps] = useState(0);
   const [interviewMemory, setInterviewMemory] = useState<any>({
     keyPoints: [],
-    followUpQuestions: [],
     candidateStrengths: [],
     areasOfConcern: []
   });
@@ -63,7 +62,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [completionRate, setCompletionRate] = useState(0);
   const [stepCompleted, setStepCompleted] = useState(false);
-  const [needsFollowUp, setNeedsFollowUp] = useState(false);
+  // Removed needsFollowUp state, no longer used in centralized interview flow.
   const [allStepsWithStatus, setAllStepsWithStatus] = useState<any[]>([]);
   const [stepsWithNoResponse, setStepsWithNoResponse] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -644,7 +643,6 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           // Update agent result state
           if (data.agentResult) {
             setStepCompleted(data.agentResult.stepCompleted);
-            setNeedsFollowUp(data.agentResult.needsFollowUp);
           }
           
           // Check if interview is complete
@@ -1200,7 +1198,6 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         allStepsWithStatus={allStepsWithStatus}
         currentStep={currentStep}
         onStepClick={(idx) => setCurrentStep(idx)}
-        floatingToggle
       />
 
       {/* Subtitles/CC overlay (show if ccEnabled) */}

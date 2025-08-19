@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import db from '@/components/screening-interview/db';
 
 interface Requirement {
   requirement_id: string;
@@ -109,4 +109,4 @@ export async function POST(req: NextRequest) {
     console.error('[API/screening/start] Error:', error);
     return NextResponse.json({ error: 'Failed to start screening process' }, { status: 500 });
   }
-} 
+}

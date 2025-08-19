@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { interviewManager } from '@/lib/interviewManager';
-import { focusedInterviewAgent } from '@/lib/focusedInterviewAgent';
+import { interviewManager } from '@/components/screening-interview/interviewManager';
+import { focusedInterviewAgent } from '@/components/screening-interview/focusedInterviewAgent';
 
 export async function POST(req: NextRequest) {
   try {
@@ -77,4 +77,4 @@ export async function POST(req: NextRequest) {
     console.error('[API/screening/focused-conversation] Error:', error);
     return NextResponse.json({ error: 'Failed to generate conversation response' }, { status: 500 });
   }
-} 
+}

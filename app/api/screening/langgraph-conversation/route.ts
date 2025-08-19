@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import db from '@/components/screening-interview/db';
 
 // Define the interview state interface
 interface InterviewState {
@@ -12,7 +12,6 @@ interface InterviewState {
   conversationHistory: any[];
   memory: {
     keyPoints: string[];
-    followUpQuestions: string[];
     candidateStrengths: string[];
     areasOfConcern: string[];
   };
@@ -78,8 +77,7 @@ Extract and categorize the following (return as JSON):
 {
   "keyPoints": ["point1", "point2"],
   "strengths": ["strength1", "strength2"], 
-  "concerns": ["concern1", "concern2"],
-  "followUpQuestions": ["question1", "question2"]
+  "concerns": ["concern1", "concern2"]
 }
 
 Only include new insights not already in the current memory.`;
@@ -109,7 +107,6 @@ Only include new insights not already in the current memory.`;
     
     return {
       keyPoints: [...existingMemory.keyPoints, ...(insights.keyPoints || [])],
-      followUpQuestions: [...existingMemory.followUpQuestions, ...(insights.followUpQuestions || [])],
       candidateStrengths: [...existingMemory.candidateStrengths, ...(insights.strengths || [])],
       areasOfConcern: [...existingMemory.areasOfConcern, ...(insights.concerns || [])]
     };
@@ -380,13 +377,11 @@ export async function POST(req: NextRequest) {
     const existingMemory = conversationHistory.length > 0 
       ? conversationHistory[conversationHistory.length - 1].memory || {
           keyPoints: [],
-          followUpQuestions: [],
           candidateStrengths: [],
           areasOfConcern: []
         }
       : {
           keyPoints: [],
-          followUpQuestions: [],
           candidateStrengths: [],
           areasOfConcern: []
         };
@@ -444,4 +439,4 @@ export async function POST(req: NextRequest) {
     console.error('[API/screening/langgraph-conversation] Error:', error);
     return NextResponse.json({ error: 'Failed to generate conversation response' }, { status: 500 });
   }
-} 
+}

@@ -1,4 +1,4 @@
-import db from '../db';
+import db from '@/components/screening-interview/db';
 
 // Candidate Answers table model and helpers
 export function initCandidateAnswersTable() {
