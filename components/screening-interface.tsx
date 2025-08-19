@@ -1017,7 +1017,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       <audio ref={audioRef} style={{ display: 'none' }} />
       
       {/* Header */}
-      <div className="bg-gray-800 text-white p-4 flex items-center justify-between relative">
+      <div className="bg-gray-850 text-white p-4 flex items-center justify-between relative">
         <div className="flex items-center space-x-4">
           <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
             <User className="w-6 h-6" />
@@ -1043,17 +1043,17 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       {/* Main Content */}
       <div className="flex-1 flex relative">
         {/* Video Area - Dynamic width based on sidebar state */}
-        <div className={`transition-all duration-500 ease-in-out ${showSidebar ? 'w-[calc(100%-24rem)]' : 'w-full'}`}>
+        <div className={`transition-all duration-500 ease-in-out ${showSidebar ? 'w-[calc(100%-20rem)]' : 'w-full'}`}>
           <div className="h-full">
             <div className="grid grid-cols-2 h-full"> {/* Restore horizontal order: agent | candidate */}
               {/* Agent Video */}
-              <div className="bg-gray-800 flex flex-col items-center justify-center relative">
+              <div className="bg-gray-950 flex flex-col items-center justify-center relative" style={{ minHeight: '100%' }}>
                 <div className={`blob mb-4 transition-all duration-[2000ms] ${shouldMorphBlob ? 'blob-animate' : ''} ${isBlobResetting ? 'blob-resetting' : ''}`}></div>
                 <h3 className="text-white font-semibold">Sarah (Interviewer)</h3>
                 <p className="text-gray-400 text-sm">Screening Agent</p>
               </div>
               {/* Candidate Video */}
-              <div className="bg-gray-800 flex flex-col items-center justify-center relative overflow-hidden candidate-video-container">
+              <div className="bg-gray-950 flex flex-col items-center justify-center relative overflow-hidden candidate-video-container">
                 {/* Auto-microphone indicator */}
                 {autoMicrophoneEnabled && (
                   <div className="auto-microphone-indicator">
@@ -1160,7 +1160,7 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
       </div>
 
       {/* Bottom Controls */}
-      <div className="bg-gray-800 p-4 flex items-center justify-between">
+      <div className="bg-gray-850 p-4 flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <button
             onClick={endCall}

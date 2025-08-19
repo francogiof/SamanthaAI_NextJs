@@ -61,7 +61,7 @@ const ScreeningSidebarToggle: React.FC<Omit<ScreeningSidebarToggleProps, 'steps'
   return (
     <>
       <button
-        className={`fixed top-1/2 right-0 z-50 p-4 rounded-l-xl bg-gray-900 border border-gray-800 shadow-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 sidebar-toggle-btn`}
+        className={`fixed top-1/2 right-0 z-50 p-4 rounded-l-xl bg-gray-950 border border-gray-800 shadow-lg hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 sidebar-toggle-btn`}
         style={{
           transform: showSidebar ? 'translateY(-50%) translateX(-16rem)' : 'translateY(-50%)',
           transition: 'right 0.3s cubic-bezier(.4,0,.2,1), background 0.2s, transform 0.3s cubic-bezier(.4,0,.2,1)',
@@ -74,7 +74,7 @@ const ScreeningSidebarToggle: React.FC<Omit<ScreeningSidebarToggleProps, 'steps'
       {showSidebar && (
         <div
           ref={progressBarRef}
-          className="fixed top-0 right-0 h-full w-64 flex flex-col items-center bg-gray-900/95 border-l border-gray-800 z-40 shadow-2xl pt-16 pb-8 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900"
+          className="fixed top-0 right-0 h-full w-64 flex flex-col items-center bg-gray-950/95 border-l border-gray-850 z-40 shadow-2xl pt-16 pb-8 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900"
         >
           <div className="w-full h-full flex-1 px-6 flex items-center justify-center">
             <VerticalStepProgressBar
