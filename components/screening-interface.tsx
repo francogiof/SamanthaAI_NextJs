@@ -57,15 +57,9 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     candidateStrengths: [],
     areasOfConcern: []
   });
-
-  // Step-by-step interview state
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [completionRate, setCompletionRate] = useState(0);
-  const [stepCompleted, setStepCompleted] = useState(false);
-  // Removed needsFollowUp state, no longer used in centralized interview flow.
   const [allStepsWithStatus, setAllStepsWithStatus] = useState<any[]>([]);
-  const [stepsWithNoResponse, setStepsWithNoResponse] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
+  const firstAgentMessageAdded = useRef(false);
 
   // Speech functionality states
   const [isListening, setIsListening] = useState(false);
@@ -89,8 +83,6 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
   const recognitionRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const sessionIdRef = useRef<string | null>(null);
-  const firstAgentMessageAdded = useRef(false);
 
   // Sidebar steps (hardcoded structure steps and icons)
   const sidebarSteps = [
@@ -499,60 +491,50 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const initializeScreening = async () => {
     try {
       console.log('[ScreeningInterface] Starting screening initialization...');
-      const response = await fetch('/api/screening/start', {
+      // Load context (optional, for display)
+      const contextResponse = await fetch('/api/screening/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requirementId, userId })
       });
-
-      const data = await response.json();
-      console.log('[ScreeningInterface] Screening start response:', data);
-
-      if (data.success) {
-        setScreeningContext(data.screeningContext);
+      const contextData = await contextResponse.json();
+      if (contextData.success) {
+        setScreeningContext(contextData.screeningContext);
         setIsConnected(true);
-        console.log('[ScreeningInterface] Screening context loaded:', data.screeningContext);
-
-        // Initialize step-by-step interview session
-        try {
-          const sessionResponse = await fetch('/api/screening/step-by-step', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              candidateMessage: '',
-              candidateId: data.screeningContext?.candidate?.candidate_id,
-              requirementId: parseInt(requirementId),
-              sessionId: null,
-              isNewSession: true
-            })
-          });
-
-          const sessionData = await sessionResponse.json();
-          if (sessionData.success) {
-            setSessionId(sessionData.sessionId);
-            sessionIdRef.current = sessionData.sessionId; // Store in ref
-            if (sessionData.progress) {
-              setTotalSteps(sessionData.progress.totalSteps);
-              setCurrentStep(sessionData.progress.currentStep);
-              setScreeningProgress(sessionData.progress.completionRate);
-            }
-            // Only add the first agent message if there are no messages yet
-            if (sessionData.response && !firstAgentMessageAdded.current) {
-              addAgentMessage(sessionData.response);
-              playAgentSpeech(sessionData.response);
-              firstAgentMessageAdded.current = true;
-            }
-            // Update step status for indicators
-            if (sessionData.allStepsWithStatus) {
-              setAllStepsWithStatus(sessionData.allStepsWithStatus);
-            }
-            console.log('[ScreeningInterface] Step-by-step session initialized:', sessionData);
+        // Use candidate_id from context for all subsequent calls
+        const candidateId = contextData.screeningContext?.candidate?.candidate_id;
+        if (!candidateId) {
+          console.error('[ScreeningInterface] No candidate_id found in screeningContext');
+          return;
+        }
+        // Call langgraph-conversation for the first question
+        const response = await fetch('/api/screening/langgraph-conversation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            candidateMessage: '',
+            candidateId: candidateId,
+            requirementId: parseInt(requirementId),
+            conversationHistory: [],
+            currentStep: 0
+          })
+        });
+        const data = await response.json();
+        if (data.success) {
+          setTotalSteps(data.totalSteps);
+          setCurrentStep(data.currentStep);
+          setAllStepsWithStatus(data.allStepsWithStatus || []);
+          setInterviewMemory(data.memory || { keyPoints: [], candidateStrengths: [], areasOfConcern: [] });
+          if (data.response && !firstAgentMessageAdded.current) {
+            addAgentMessage(data.response);
+            playAgentSpeech(data.response);
+            firstAgentMessageAdded.current = true;
           }
-        } catch (error) {
-          console.error('[ScreeningInterface] Error initializing step-by-step session:', error);
+        } else {
+          console.error('[ScreeningInterface] Failed to initialize screening:', data.error);
         }
       } else {
-        console.error('[ScreeningInterface] Failed to initialize screening:', data.error);
+        console.error('[ScreeningInterface] Failed to initialize screening:', contextData.error);
       }
     } catch (error) {
       console.error('[ScreeningInterface] Error initializing screening:', error);
@@ -586,28 +568,19 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const handleSendMessage = async (text?: string) => {
     const messageText = text || candidateResponse;
     if (!messageText.trim()) return;
-    // Always use the latest sessionId from state or ref
-    const currentSessionId = sessionId || sessionIdRef.current;
-    if (!currentSessionId) {
-      console.error('[ScreeningInterface] No sessionId available for candidate message.');
-      addAgentMessage('Session not found. Please refresh and try again.');
-      playAgentSpeech('Session not found. Please refresh and try again.');
-      return;
-    }
     addCandidateMessage(messageText);
     if (!text) setCandidateResponse('');
     setAgentTyping(true);
     try {
-      // Call backend API for agent response
-      const response = await fetch('/api/screening/step-by-step', {
+      const response = await fetch('/api/screening/langgraph-conversation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           candidateMessage: messageText,
           candidateId: screeningContext?.candidate?.candidate_id,
           requirementId: parseInt(requirementId),
-          sessionId: currentSessionId,
-          isNewSession: false
+          conversationHistory: [], // Optionally pass previous memory if needed
+          currentStep
         })
       });
       const data = await response.json();
@@ -615,27 +588,13 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         setTimeout(() => {
           addAgentMessage(data.response);
           playAgentSpeech(data.response);
-          // Always update sessionId from response
-          if (data.sessionId) {
-            setSessionId(data.sessionId);
-            sessionIdRef.current = data.sessionId;
-          }
-          if (data.progress) {
-            setCompletionRate(data.progress.completionRate);
-            setCurrentStep(data.progress.currentStep);
-            setTotalSteps(data.progress.totalSteps);
-            setScreeningProgress(data.progress.completionRate);
-            setStepsWithNoResponse(data.progress.stepsWithNoResponse);
-          }
-          if (data.allStepsWithStatus) {
-            setAllStepsWithStatus(data.allStepsWithStatus);
-          }
-          if (data.agentResult) {
-            setStepCompleted(data.agentResult.stepCompleted);
-          }
+          setCurrentStep(data.currentStep);
+          setTotalSteps(data.totalSteps);
+          setAllStepsWithStatus(data.allStepsWithStatus || []);
+          setInterviewMemory(data.memory || { keyPoints: [], candidateStrengths: [], areasOfConcern: [] });
           if (data.interviewComplete) {
             setScreeningComplete(true);
-            console.log('[ScreeningInterface] Interview completed via step-by-step system');
+            console.log('[ScreeningInterface] Interview completed via LangChain system');
           }
         }, 1000);
       } else {
