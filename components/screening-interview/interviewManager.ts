@@ -1,3 +1,5 @@
+import { focusedInterviewAgent } from '@/components/screening-interview/focusedInterviewAgent';
+
 // Interview Manager - Controls interview flow and step tracking
 export interface InterviewStep {
   step_id: number;
@@ -223,6 +225,37 @@ export class InterviewManager {
         console.log(`[InterviewManager] Cleaned up old session ${sessionId}`);
       }
     }
+  }
+
+  // Orchestrate agent and protocol logic for candidate message
+  async handleCandidateMessage(sessionId: string, candidateMessage: string): Promise<{ response: string; nextStep: number; interviewComplete: boolean }> {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return { response: 'Session not found.', nextStep: 0, interviewComplete: true };
+    }
+    // Call agent with protocol parameters
+    const agentResult = await focusedInterviewAgent.generateResponse(
+      session.candidateId,
+      session.requirementId,
+      candidateMessage,
+      session.currentStep,
+      session.startTime.getTime(),
+      30 * 60 * 1000 // 30 min default, could be configurable
+    );
+    // Update session step if agent advanced
+    if (agentResult.nextStep !== session.currentStep) {
+      session.currentStep = agentResult.nextStep;
+      session.lastActivity = new Date();
+      // Mark interview complete if at end
+      if (session.currentStep >= session.totalSteps) {
+        session.interviewComplete = true;
+      }
+    }
+    return {
+      response: agentResult.response,
+      nextStep: agentResult.nextStep,
+      interviewComplete: session.interviewComplete
+    };
   }
 
   // Private method to load steps from database

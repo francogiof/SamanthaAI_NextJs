@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/components/screening-interview/db';
+import { interviewManager } from '@/components/screening-interview/interviewManager';
 
 interface InterviewStep {
   step_id: number;
@@ -450,54 +451,26 @@ export async function POST(req: NextRequest) {
     try {
       console.log('[API/screening/step-by-step] Processing response for session:', currentSessionId);
       console.log('[API/screening/step-by-step] Candidate message:', candidateMessage);
-      
-      // Get session info for debugging
-      const session = stepByStepManager.getSession(currentSessionId);
-      console.log('[API/screening/step-by-step] Session info:', {
-        sessionId: currentSessionId,
-        currentStep: session?.currentStep,
-        totalSteps: session?.totalSteps,
-        interviewComplete: session?.interviewComplete
-      });
-      
-      const agentResult = await stepByStepManager.processResponse(currentSessionId, candidateMessage || '');
-      console.log('[API/screening/step-by-step] Agent result:', agentResult);
-      
-      const progress = stepByStepManager.getProgress(currentSessionId);
-      console.log('[API/screening/step-by-step] Progress:', progress);
-      
-      const allStepsWithStatus = stepByStepManager.getAllStepsWithStatus(currentSessionId);
-      console.log('[API/screening/step-by-step] All steps with status:', allStepsWithStatus.length);
 
-      console.log('[API/screening/step-by-step] Generated response:', {
-        response: agentResult.response.substring(0, 100) + '...',
-        shouldMove: agentResult.shouldMove,
-        reason: agentResult.reason,
-        stepCompleted: agentResult.stepCompleted,
-        needsFollowUp: agentResult.needsFollowUp,
-        progress: progress?.completionRate.toFixed(1) + '%'
-      });
+      // Use new modular agent logic
+      const agentResult = await interviewManager.handleCandidateMessage(currentSessionId, candidateMessage || '');
+      const progress = interviewManager.getSessionStats(currentSessionId);
+      const allStepsWithStatus = interviewManager.getAllStepsWithStatus(currentSessionId);
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: true,
         response: agentResult.response,
         sessionId: currentSessionId,
         progress,
         allStepsWithStatus,
         agentResult: {
-          shouldMove: agentResult.shouldMove,
-          reason: agentResult.reason,
-          stepCompleted: agentResult.stepCompleted,
-          needsFollowUp: agentResult.needsFollowUp
+          nextStep: agentResult.nextStep,
+          interviewComplete: agentResult.interviewComplete
         },
-        interviewComplete: progress?.interviewComplete || false
+        interviewComplete: agentResult.interviewComplete
       });
     } catch (error) {
       console.error('[API/screening/step-by-step] Error processing response:', error);
-      console.error('[API/screening/step-by-step] Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack trace'
-      });
       return NextResponse.json({ error: 'Failed to process response: ' + (error instanceof Error ? error.message : 'Unknown error') }, { status: 500 });
     }
 

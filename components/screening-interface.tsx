@@ -582,27 +582,16 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
     setMessages(prev => [...prev, newMessage]);
   };
 
+  // Candidate sends a message (answer or question)
   const handleSendMessage = async (text?: string) => {
     const messageText = text || candidateResponse;
     if (!messageText.trim()) return;
-    
-    // Use session ID from ref if state is null
     const currentSessionId = sessionId || sessionIdRef.current;
-    
-    console.log('[ScreeningInterface] Sending candidate response:', messageText);
-    console.log('[ScreeningInterface] Current session ID:', currentSessionId);
     addCandidateMessage(messageText);
-    
-    // Clear input
-    if (!text) {
-      setCandidateResponse('');
-    }
-    
-    // Simulate agent processing
+    if (!text) setCandidateResponse('');
     setAgentTyping(true);
-    
     try {
-      // Get AI response using step-by-step API
+      // Call backend API for agent response
       const response = await fetch('/api/screening/step-by-step', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -611,22 +600,16 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
           candidateId: screeningContext?.candidate?.candidate_id,
           requirementId: parseInt(requirementId),
           sessionId: currentSessionId,
-          isNewSession: false // Never create new session here
+          isNewSession: false
         })
       });
-
       const data = await response.json();
-      
       if (data.success) {
         setTimeout(() => {
           addAgentMessage(data.response);
           playAgentSpeech(data.response);
-          
-          // Update session state
           setSessionId(data.sessionId);
-          sessionIdRef.current = data.sessionId; // Update ref
-          
-          // Update progress
+          sessionIdRef.current = data.sessionId;
           if (data.progress) {
             setCompletionRate(data.progress.completionRate);
             setCurrentStep(data.progress.currentStep);
@@ -634,26 +617,18 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
             setScreeningProgress(data.progress.completionRate);
             setStepsWithNoResponse(data.progress.stepsWithNoResponse);
           }
-          
-          // Update step status for indicators
           if (data.allStepsWithStatus) {
             setAllStepsWithStatus(data.allStepsWithStatus);
           }
-          
-          // Update agent result state
           if (data.agentResult) {
             setStepCompleted(data.agentResult.stepCompleted);
           }
-          
-          // Check if interview is complete
           if (data.interviewComplete) {
             setScreeningComplete(true);
             console.log('[ScreeningInterface] Interview completed via step-by-step system');
           }
         }, 1000);
       } else {
-        // If session failed, show error and don't create new session
-        console.error('[ScreeningInterface] Session failed:', data.error);
         setTimeout(() => {
           const errorMessage = 'Sorry, there was an issue with the interview session. Please refresh the page and try again.';
           addAgentMessage(errorMessage);
@@ -661,14 +636,13 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         }, 1000);
       }
     } catch (error) {
-      console.error('[ScreeningInterface] Error getting AI response:', error);
-      // Only show error message, don't add fallback response
       setTimeout(() => {
         const errorMessage = 'Sorry, there was an issue with the interview. Please try again.';
         addAgentMessage(errorMessage);
         playAgentSpeech(errorMessage);
       }, 1000);
     }
+    setAgentTyping(false);
   };
 
   const completeScreening = async () => {

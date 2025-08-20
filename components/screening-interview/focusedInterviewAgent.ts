@@ -1,4 +1,5 @@
 import db from '@/components/screening-interview/db';
+import { protocolAgent } from '@/components/screening-interview/protocolAgent';
 
 export class FocusedInterviewAgent {
   private apiKey: string;
@@ -17,18 +18,36 @@ export class FocusedInterviewAgent {
     candidateId: number,
     requirementId: number,
     candidateMessage: string,
-    currentStep: number
+    currentStep: number,
+    startTime?: number,
+    maxDurationMs?: number
   ): Promise<{ response: string; nextStep: number; }> {
     const steps = this.getSteps(candidateId, requirementId);
     if (!steps || steps.length === 0) {
       return { response: 'No interview steps found. Please contact support.', nextStep: currentStep };
     }
 
+    // Protocol enforcement
+    const protocolState = {
+      currentStep,
+      totalSteps: steps.length,
+      startTime: startTime || Date.now(),
+      maxDurationMs: maxDurationMs || 30 * 60 * 1000, // default 30 min
+      candidateMessage: candidateMessage || ''
+    };
+    const protocolResult = protocolAgent.enforceProtocol(protocolState);
+    if (!protocolResult.allowContinue) {
+      return {
+        response: protocolResult.message || 'Interview ended by protocol.',
+        nextStep: currentStep
+      };
+    }
+
     // If candidate asks a question (interruption)
-    if (candidateMessage && /\?$/.test(candidateMessage.trim())) {
+    if (protocolAgent.isInterruption(candidateMessage)) {
       // Use LLM to answer candidate's question
       if (this.apiKey) {
-        const systemPrompt = 'You are Sarah, a professional AI interviewer. Answer the candidate\'s question briefly and clearly. After answering, say you will continue with the interview.';
+        const systemPrompt = 'You are Samantha, a professional AI interviewer. Answer the candidate\'s question briefly and clearly. After answering, say you will continue with the interview.';
         const userPrompt = `Candidate asked: "${candidateMessage}"`;
         const response = await fetch('https://api.lemonfox.ai/v1/chat/completions', {
           method: 'POST',
