@@ -1,4 +1,54 @@
+import db from '@/components/screening-interview/db';
 import { focusedInterviewAgent } from '@/components/screening-interview/focusedInterviewAgent';
+
+// Utility functions for session persistence
+function serializeSession(session: InterviewSession) {
+  return JSON.stringify({
+    sessionId: session.sessionId,
+    candidateId: session.candidateId,
+    requirementId: session.requirementId,
+    currentStep: session.currentStep,
+    totalSteps: session.totalSteps,
+    stepResponses: Array.from(session.stepResponses.entries()), // Map to array
+    memory: session.memory,
+    interviewComplete: session.interviewComplete,
+    startTime: session.startTime.toISOString(),
+    lastActivity: session.lastActivity.toISOString()
+  });
+}
+
+function deserializeSession(row: any): InterviewSession | null {
+  if (!row || !row.session_data) return null;
+  const data = JSON.parse(row.session_data);
+  return {
+    sessionId: row.session_id || data.sessionId,
+    candidateId: row.candidate_id || data.candidateId,
+    requirementId: row.requirement_id || data.requirementId,
+    currentStep: data.currentStep,
+    totalSteps: data.totalSteps,
+    stepResponses: new Map(data.stepResponses),
+    memory: data.memory,
+    interviewComplete: data.interviewComplete,
+    startTime: new Date(data.startTime),
+    lastActivity: new Date(data.lastActivity)
+  };
+}
+
+async function saveSessionToDB(session: InterviewSession) {
+  db.prepare(`INSERT OR REPLACE INTO interview_sessions (session_id, candidate_id, requirement_id, session_data, last_activity) VALUES (?, ?, ?, ?, ?)`)
+    .run(
+      session.sessionId,
+      session.candidateId,
+      session.requirementId,
+      serializeSession(session),
+      session.lastActivity.toISOString()
+    );
+}
+
+async function loadSessionFromDB(sessionId: string): Promise<InterviewSession | null> {
+  const row = db.prepare(`SELECT * FROM interview_sessions WHERE session_id = ?`).get(sessionId);
+  return deserializeSession(row);
+}
 
 // Interview Manager - Controls interview flow and step tracking
 export interface InterviewStep {
@@ -80,14 +130,15 @@ export class InterviewManager {
     };
 
     this.sessions.set(sessionId, session);
+    saveSessionToDB(session);
     console.log(`[InterviewManager] Created session ${sessionId} with ${allSteps.length} steps`);
     
     return sessionId;
   }
 
   // Move to next step
-  moveToNextStep(sessionId: string): boolean {
-    const session = this.sessions.get(sessionId);
+  async moveToNextStep(sessionId: string): Promise<boolean> {
+    const session = await this.getSession(sessionId);
     if (!session) return false;
 
     session.currentStep++;
@@ -100,12 +151,13 @@ export class InterviewManager {
     }
 
     console.log(`[InterviewManager] Moved to step ${session.currentStep} of ${session.totalSteps}`);
+    this.updateSession(session);
     return true;
   }
 
   // Get current step with response tracking
-  getCurrentStep(sessionId: string): { step: InterviewStep | null; response: StepResponse | null } {
-    const session = this.sessions.get(sessionId);
+  async getCurrentStep(sessionId: string): Promise<{ step: InterviewStep | null; response: StepResponse | null }> {
+    const session = await this.getSession(sessionId);
     if (!session) return { step: null, response: null };
 
     const allSteps = this.stepsCache.get(`${session.candidateId}_${session.requirementId}`) || [];
@@ -124,8 +176,8 @@ export class InterviewManager {
   }
 
   // Record candidate response
-  recordResponse(sessionId: string, stepId: number, candidateResponse: string, quality: 'partial' | 'complete'): boolean {
-    const session = this.sessions.get(sessionId);
+  async recordResponse(sessionId: string, stepId: number, candidateResponse: string, quality: 'partial' | 'complete'): Promise<boolean> {
+    const session = await this.getSession(sessionId);
     if (!session) return false;
 
     const response = session.stepResponses.get(stepId);
@@ -138,12 +190,13 @@ export class InterviewManager {
     session.lastActivity = new Date();
 
     console.log(`[InterviewManager] Recorded response for step ${stepId}, quality: ${quality}, completed: ${response.completed}`);
+    this.updateSession(session);
     return true;
   }
 
   // Get all steps with their completion status for UI indicators
-  getAllStepsWithStatus(sessionId: string): Array<InterviewStep & { status: 'completed' | 'partial' | 'no-response' | 'current' }> {
-    const session = this.sessions.get(sessionId);
+  async getAllStepsWithStatus(sessionId: string): Promise<Array<InterviewStep & { status: 'completed' | 'partial' | 'no-response' | 'current' }>> {
+    const session = await this.getSession(sessionId);
     if (!session) return [];
 
     const allSteps = this.stepsCache.get(`${session.candidateId}_${session.requirementId}`) || [];
@@ -165,15 +218,15 @@ export class InterviewManager {
   }
 
   // Get session statistics
-  getSessionStats(sessionId: string): {
+  async getSessionStats(sessionId: string): Promise<{
     totalSteps: number;
     completedSteps: number;
     currentStep: number;
     completionRate: number;
     interviewComplete: boolean;
     stepsWithNoResponse: number;
-  } {
-    const session = this.sessions.get(sessionId);
+  }> {
+    const session = await this.getSession(sessionId);
     if (!session) {
       return {
         totalSteps: 0,
@@ -202,22 +255,34 @@ export class InterviewManager {
   }
 
   // Update memory
-  updateMemory(sessionId: string, memoryUpdate: Partial<InterviewSession['memory']>): boolean {
-    const session = this.sessions.get(sessionId);
+  async updateMemory(sessionId: string, memoryUpdate: Partial<InterviewSession['memory']>): Promise<boolean> {
+    const session = await this.getSession(sessionId);
     if (!session) return false;
 
     session.memory = { ...session.memory, ...memoryUpdate };
     session.lastActivity = new Date();
+    this.updateSession(session);
     return true;
   }
 
   // Get session
-  getSession(sessionId: string): InterviewSession | null {
-    return this.sessions.get(sessionId) || null;
+  async getSession(sessionId: string): Promise<InterviewSession | null> {
+    if (this.sessions.has(sessionId)) {
+      return this.sessions.get(sessionId)!;
+    }
+    const session = await loadSessionFromDB(sessionId);
+    if (session) this.sessions.set(sessionId, session);
+    return session;
+  }
+
+  // Update session in DB after changes
+  updateSession(session: InterviewSession) {
+    this.sessions.set(session.sessionId, session);
+    saveSessionToDB(session);
   }
 
   // Clean up old sessions (optional)
-  cleanupOldSessions(maxAgeHours: number = 24): void {
+  async cleanupOldSessions(maxAgeHours: number = 24): Promise<void> {
     const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000);
     for (const [sessionId, session] of this.sessions.entries()) {
       if (session.lastActivity < cutoff) {
@@ -229,7 +294,7 @@ export class InterviewManager {
 
   // Orchestrate agent and protocol logic for candidate message
   async handleCandidateMessage(sessionId: string, candidateMessage: string): Promise<{ response: string; nextStep: number; interviewComplete: boolean }> {
-    const session = this.sessions.get(sessionId);
+    const session = await this.getSession(sessionId);
     if (!session) {
       return { response: 'Session not found.', nextStep: 0, interviewComplete: true };
     }
@@ -251,6 +316,7 @@ export class InterviewManager {
         session.interviewComplete = true;
       }
     }
+    this.updateSession(session);
     return {
       response: agentResult.response,
       nextStep: agentResult.nextStep,

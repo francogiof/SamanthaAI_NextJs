@@ -586,7 +586,14 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
   const handleSendMessage = async (text?: string) => {
     const messageText = text || candidateResponse;
     if (!messageText.trim()) return;
+    // Always use the latest sessionId from state or ref
     const currentSessionId = sessionId || sessionIdRef.current;
+    if (!currentSessionId) {
+      console.error('[ScreeningInterface] No sessionId available for candidate message.');
+      addAgentMessage('Session not found. Please refresh and try again.');
+      playAgentSpeech('Session not found. Please refresh and try again.');
+      return;
+    }
     addCandidateMessage(messageText);
     if (!text) setCandidateResponse('');
     setAgentTyping(true);
@@ -608,8 +615,11 @@ export default function ScreeningInterface({ requirementId, userId, onComplete, 
         setTimeout(() => {
           addAgentMessage(data.response);
           playAgentSpeech(data.response);
-          setSessionId(data.sessionId);
-          sessionIdRef.current = data.sessionId;
+          // Always update sessionId from response
+          if (data.sessionId) {
+            setSessionId(data.sessionId);
+            sessionIdRef.current = data.sessionId;
+          }
           if (data.progress) {
             setCompletionRate(data.progress.completionRate);
             setCurrentStep(data.progress.currentStep);

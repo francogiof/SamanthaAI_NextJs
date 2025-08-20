@@ -75,20 +75,21 @@ class StepByStepInterviewManager {
       lastActivity: new Date()
     };
 
-    this.sessions.set(sessionId, session);
+    await this.saveSessionToDB(session);
     console.log(`[StepByStepManager] Created session ${sessionId} with ${allSteps.length} steps`);
     
     return sessionId;
   }
 
   // Get session info
-  getSession(sessionId: string): InterviewSession | null {
-    return this.sessions.get(sessionId) || null;
+  async getSession(sessionId: string): Promise<InterviewSession | null> {
+    const session = await this.loadSessionFromDB(sessionId);
+    return session || null;
   }
 
   // Get current step
-  getCurrentStep(sessionId: string): { step: InterviewStep | null; response: StepResponse | null } {
-    const session = this.sessions.get(sessionId);
+  async getCurrentStep(sessionId: string): Promise<{ step: InterviewStep | null; response: StepResponse | null }> {
+    const session = await this.getSession(sessionId);
     if (!session) return { step: null, response: null };
 
     const allSteps = this.stepsCache.get(`${session.candidateId}_${session.requirementId}`) || [];
@@ -104,8 +105,8 @@ class StepByStepInterviewManager {
   }
 
   // Get progress info
-  getProgress(sessionId: string) {
-    const session = this.sessions.get(sessionId);
+  async getProgress(sessionId: string) {
+    const session = await this.getSession(sessionId);
     if (!session) return null;
 
     const allSteps = this.stepsCache.get(`${session.candidateId}_${session.requirementId}`) || [];
@@ -122,8 +123,8 @@ class StepByStepInterviewManager {
   }
 
   // Get all steps with status
-  getAllStepsWithStatus(sessionId: string) {
-    const session = this.sessions.get(sessionId);
+  async getAllStepsWithStatus(sessionId: string) {
+    const session = await this.getSession(sessionId);
     if (!session) return [];
 
     const allSteps = this.stepsCache.get(`${session.candidateId}_${session.requirementId}`) || [];
@@ -159,7 +160,7 @@ class StepByStepInterviewManager {
     stepCompleted: boolean;
     needsFollowUp: boolean;
   }> {
-    const session = this.sessions.get(sessionId);
+    const session = await this.getSession(sessionId);
     if (!session) {
       throw new Error('Session not found');
     }
@@ -168,7 +169,7 @@ class StepByStepInterviewManager {
     console.log(`[StepByStepManager] Current step: ${session.currentStep}, Total steps: ${session.totalSteps}`);
     console.log(`[StepByStepManager] Candidate message: "${candidateMessage}"`);
 
-    const { step: currentStep, response: stepResponse } = this.getCurrentStep(sessionId);
+    const { step: currentStep, response: stepResponse } = await this.getCurrentStep(sessionId);
     console.log(`[StepByStepManager] Current step info:`, {
       stepId: currentStep?.step_id,
       stepOrder: currentStep?.step_order,
@@ -221,6 +222,7 @@ class StepByStepInterviewManager {
       if (session.currentStep >= session.totalSteps) {
         console.log(`[StepByStepManager] Interview completed`);
         session.interviewComplete = true;
+        await this.saveSessionToDB(session);
         return {
           response: 'Thank you for completing the interview! We will review your responses and get back to you soon.',
           shouldMove: true,
@@ -231,7 +233,7 @@ class StepByStepInterviewManager {
       }
 
       // Get next step
-      const nextStep = this.getCurrentStep(sessionId);
+      const nextStep = await this.getCurrentStep(sessionId);
       console.log(`[StepByStepManager] Next step info:`, {
         stepId: nextStep.step?.step_id,
         stepOrder: nextStep.step?.step_order,
@@ -240,6 +242,7 @@ class StepByStepInterviewManager {
       });
       
       if (nextStep.step) {
+        await this.saveSessionToDB(session);
         return {
           response: nextStep.step.text.replace(/^"|"$/g, ''),
           shouldMove: true,
@@ -259,6 +262,7 @@ class StepByStepInterviewManager {
       if (session.currentStep >= session.totalSteps) {
         console.log(`[StepByStepManager] Interview completed`);
         session.interviewComplete = true;
+        await this.saveSessionToDB(session);
         return {
           response: 'Thank you for completing the interview! We will review your responses and get back to you soon.',
           shouldMove: true,
@@ -268,8 +272,9 @@ class StepByStepInterviewManager {
         };
       }
 
-      const nextStep = this.getCurrentStep(sessionId);
+      const nextStep = await this.getCurrentStep(sessionId);
       if (nextStep.step) {
+        await this.saveSessionToDB(session);
         return {
           response: nextStep.step.text.replace(/^"|"$/g, ''),
           shouldMove: true,
@@ -281,6 +286,7 @@ class StepByStepInterviewManager {
     }
 
     console.log(`[StepByStepManager] Fallback response`);
+    await this.saveSessionToDB(session);
     return {
       response: 'Let me ask you the next question.',
       shouldMove: false,
@@ -291,8 +297,8 @@ class StepByStepInterviewManager {
   }
 
   // Get the first question to start the interview
-  getFirstQuestion(sessionId: string): string {
-    const { step } = this.getCurrentStep(sessionId);
+  async getFirstQuestion(sessionId: string): Promise<string> {
+    const { step } = await this.getCurrentStep(sessionId);
     if (!step) {
       return 'No interview questions found. Please contact support.';
     }
@@ -385,6 +391,52 @@ class StepByStepInterviewManager {
 
     return 'That\'s a great question! I\'ll answer it as best I can.';
   }
+
+  private async loadSessionFromDB(sessionId: string): Promise<InterviewSession | null> {
+    try {
+      const row = db.prepare(`SELECT * FROM interview_sessions WHERE session_id = ?`).get(sessionId);
+      if (!row) return null;
+      const data = JSON.parse(row.session_data);
+      return {
+        sessionId: row.session_id,
+        candidateId: row.candidate_id,
+        requirementId: row.requirement_id,
+        currentStep: data.currentStep,
+        totalSteps: data.totalSteps,
+        stepResponses: new Map(data.stepResponses),
+        interviewComplete: data.interviewComplete,
+        startTime: new Date(data.startTime),
+        lastActivity: new Date(row.last_activity)
+      };
+    } catch (error) {
+      console.error('[StepByStepManager] Error loading session from DB:', error);
+      return null;
+    }
+  }
+
+  private async saveSessionToDB(session: InterviewSession): Promise<void> {
+    try {
+      const sessionData = JSON.stringify({
+        currentStep: session.currentStep,
+        totalSteps: session.totalSteps,
+        stepResponses: Array.from(session.stepResponses.entries()),
+        interviewComplete: session.interviewComplete,
+        startTime: session.startTime.toISOString()
+      });
+      db.prepare(`
+        INSERT OR REPLACE INTO interview_sessions (session_id, candidate_id, requirement_id, session_data, last_activity)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(
+        session.sessionId,
+        session.candidateId,
+        session.requirementId,
+        sessionData,
+        session.lastActivity.toISOString()
+      );
+    } catch (error) {
+      console.error('[StepByStepManager] Error saving session to DB:', error);
+    }
+  }
 }
 
 const stepByStepManager = new StepByStepInterviewManager();
@@ -423,9 +475,9 @@ export async function POST(req: NextRequest) {
         console.log('[API/screening/step-by-step] Created new session:', currentSessionId);
         
         // For new sessions, return the first question immediately
-        const firstQuestion = stepByStepManager.getFirstQuestion(currentSessionId);
-        const progress = stepByStepManager.getProgress(currentSessionId);
-        const allStepsWithStatus = stepByStepManager.getAllStepsWithStatus(currentSessionId);
+        const firstQuestion = await stepByStepManager.getFirstQuestion(currentSessionId);
+        const progress = await stepByStepManager.getProgress(currentSessionId);
+        const allStepsWithStatus = await stepByStepManager.getAllStepsWithStatus(currentSessionId);
         
         return NextResponse.json({ 
           success: true,
@@ -454,8 +506,8 @@ export async function POST(req: NextRequest) {
 
       // Use new modular agent logic
       const agentResult = await interviewManager.handleCandidateMessage(currentSessionId, candidateMessage || '');
-      const progress = interviewManager.getSessionStats(currentSessionId);
-      const allStepsWithStatus = interviewManager.getAllStepsWithStatus(currentSessionId);
+      const progress = await interviewManager.getSession(currentSessionId);
+      const allStepsWithStatus = await stepByStepManager.getAllStepsWithStatus(currentSessionId);
 
       return NextResponse.json({
         success: true,

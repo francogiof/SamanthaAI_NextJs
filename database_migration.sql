@@ -152,4 +152,15 @@ CREATE TABLE IF NOT EXISTS screening_interview_steps (
 
 -- 15. Add candidate_id column to existing screening_interview_steps table if it doesn't exist
 -- This handles the case where the table was created before the candidate_id column was added
-ALTER TABLE screening_interview_steps ADD COLUMN candidate_id TEXT; 
+ALTER TABLE screening_interview_steps ADD COLUMN candidate_id TEXT;
+
+-- Migration for persistent interview session storage
+CREATE TABLE IF NOT EXISTS interview_sessions (
+  session_id TEXT PRIMARY KEY,
+  candidate_id INTEGER NOT NULL,
+  requirement_id INTEGER NOT NULL,
+  session_data TEXT NOT NULL,
+  last_activity TEXT NOT NULL
+);
+-- You can run this migration using: sqlite3 app.db < database_migration.sql
+-- Or add to your migration runner if you have one.
